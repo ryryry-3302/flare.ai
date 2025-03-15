@@ -15,5 +15,5 @@ def extract_text_from_image(image_path):
     return response.text
 
 if __name__ == "__main__":
-    result = extract_text_from_image("image.png")
+    result = extract_text_from_image("media\Anchor  - 1_page_1.png")
     print(result)
