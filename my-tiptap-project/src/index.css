@@ -1,2 +1,11 @@
 @import "tailwindcss";
 
+/* Custom styles without using @layer or @apply for now */
+.tiptap-editor {
+  font-family: 'Merriweather', serif;
+  line-height: 1.5;
+  padding: 1rem;
+  min-height: 300px;
+  border: 1px solid #e2e8f0;
+  border-radius: 0.375rem;
+}
