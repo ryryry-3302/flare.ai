@@ -7,6 +7,20 @@ load_dotenv()
 
 client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
 
+def extract_text_from_image(image_path):
+    """Extract text from a single image file"""
+    prompt = "Extract text from the image and return it as it is, keeping the grammar and spelling mistakes."
+    image = PIL.Image.open(image_path)
+    
+    try:
+        response = client.models.generate_content(
+            model="gemini-2.0-flash", contents=[prompt, image]
+        )
+        return response.text
+    except Exception as e:
+        print(f"Error extracting text: {str(e)}")
+        return ""
+
 def extract_text_from_images_with_prefix(prefix):
     prompt = "Extract text from the image and return it as it is, keeping the grammar and spelling mistakes."
     results = []

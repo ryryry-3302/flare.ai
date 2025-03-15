@@ -9,6 +9,8 @@ from queue import Queue
 import threading
 import socket
 from flask_cors import CORS
+import PIL.Image
+from transcribe_from_image import extract_text_from_image  # Import the transcription function
 
 app = Flask(__name__)
 CORS(app)  # This enables CORS for all routes
@@ -24,6 +26,27 @@ sessions = {}
 
 # Lock for thread-safe session management
 session_lock = threading.Lock()
+
+# Add this function to extract text from a single image
+def extract_text_from_image(image_path):
+    """Extract text from a single image file using Gemini API"""
+    from google import genai
+    import PIL.Image
+    
+    # Use the client from transcribe_from_image.py
+    from transcribe_from_image import client
+    
+    prompt = "Extract text from the image and return it as it is, keeping the grammar and spelling mistakes."
+    image = PIL.Image.open(image_path)
+    
+    try:
+        response = client.models.generate_content(
+            model="gemini-2.0-flash", contents=[prompt, image]
+        )
+        return response.text
+    except Exception as e:
+        print(f"Error extracting text: {str(e)}")
+        return ""
 
 class MessageAnnouncer:
     def __init__(self):
@@ -64,10 +87,15 @@ def upload_file(session_id):
         filepath = os.path.join(session_dir, filename)
         file.save(filepath)
         
-        # Notify clients that file is uploaded
+        # Extract text from the image
+        notify_clients(session_id, {'status': 'processing', 'message': 'Extracting text from image...'})
+        extracted_text = extract_text_from_image(filepath)
+        
+        # Notify clients that file is uploaded and text extracted
         notify_clients(session_id, {
             'status': 'success',
-            'filename': filename
+            'filename': filename,
+            'extractedText': extracted_text
         })
         
         return jsonify({
@@ -76,7 +104,8 @@ def upload_file(session_id):
                 'filename': filename,
                 'size': os.path.getsize(filepath),
                 'path': filepath
-            }
+            },
+            'extractedText': extracted_text
         })
 
 @app.route('/api/upload-status/<session_id>')
