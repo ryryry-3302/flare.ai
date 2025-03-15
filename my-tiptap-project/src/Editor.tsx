@@ -99,7 +99,7 @@ const Editor = () => {
         {/* Live insights panel (collapsible) */}
         {showInsights && (
           <div className="w-1/3 border-l p-4 bg-slate-50">
-            <EditorStats wordCount={wordCount} />
+            <EditorStats wordCount={wordCount} editor={editor} />
           </div>
         )}
       </div>
