@@ -14,3 +14,15 @@
 .mark-highlight {
   background-color: #fef08a; /* This is Tailwind's amber-100, for example */
 }
+
+.ProseMirror ul {
+  @apply list-disc pl-6 my-4;
+}
+
+.ProseMirror ol {
+  @apply list-decimal pl-6 my-4;
+}
+
+.ProseMirror blockquote {
+  @apply border-l-4 border-gray-300 pl-4 italic my-4;
+}
