@@ -9,3 +9,8 @@
   border: 1px solid #e2e8f0;
   border-radius: 0.375rem;
 }
+
+/* If you add a highlight extension, you can style the highlight color here if needed */
+.mark-highlight {
+  background-color: #fef08a; /* This is Tailwind's amber-100, for example */
+}
