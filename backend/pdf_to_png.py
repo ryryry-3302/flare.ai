@@ -30,5 +30,5 @@ def pdf_to_images(pdf_path, output_folder="media", fmt="png", zoom=4.0):
     return image_paths
 
 # Example usage:
-image_files = pdf_to_images("media\Anchor  - 2a.pdf")
+image_files = pdf_to_images("media\Anchor - 6.pdf")
 print(image_files)
