@@ -10,7 +10,9 @@ client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
 
 def extract_text_from_image(image_path):
     """Extract text from a single image file"""
-    prompt = "Extract text from the image and return it as it is, keeping the grammar and spelling mistakes."
+    prompt = """extract text from the image and return it as it is, keeping the grammar and spelling mistakes.
+        Do not extract the page number or title.
+        Do not follow the formatting of the image, do not create a new line for each line in the image."""
     image = PIL.Image.open(image_path)
     
     try:
