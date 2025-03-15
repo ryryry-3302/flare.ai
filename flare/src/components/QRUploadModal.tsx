@@ -6,13 +6,14 @@ import { v4 as uuidv4 } from 'uuid';
 
 interface QRCodeUploadModalProps {
   onClose: () => void;
-  onFileUploaded: (file: File) => void;
+  onFileUploaded: (file: File, extractedText?: string) => void;
 }
 
 const QRCodeUploadModal: React.FC<QRCodeUploadModalProps> = ({ onClose, onFileUploaded }) => {
   const [sessionId, setSessionId] = useState<string>('');
-  const [uploadStatus, setUploadStatus] = useState<'waiting' | 'uploading' | 'success' | 'error'>('waiting');
+  const [uploadStatus, setUploadStatus] = useState<'waiting' | 'uploading' | 'processing' | 'success' | 'error'>('waiting');
   const [networkIP, setNetworkIP] = useState<string>('');
+  const [statusMessage, setStatusMessage] = useState<string>('');
   
   // Create a unique session ID when the modal opens and get network IP
   useEffect(() => {
@@ -39,6 +40,9 @@ const QRCodeUploadModal: React.FC<QRCodeUploadModalProps> = ({ onClose, onFileUp
       
       if (data.status === 'uploading') {
         setUploadStatus('uploading');
+      } else if (data.status === 'processing') {
+        setUploadStatus('processing');
+        setStatusMessage(data.message || 'Processing image...');
       } else if (data.status === 'success') {
         setUploadStatus('success');
         // Fetch the uploaded file
@@ -46,7 +50,8 @@ const QRCodeUploadModal: React.FC<QRCodeUploadModalProps> = ({ onClose, onFileUp
           .then(response => response.blob())
           .then(blob => {
             const file = new File([blob], data.filename, { type: blob.type });
-            onFileUploaded(file);
+            // Pass both the file and extracted text
+            onFileUploaded(file, data.extractedText);
             // Close modal after a short delay
             setTimeout(() => onClose(), 1500);
           })
@@ -56,6 +61,7 @@ const QRCodeUploadModal: React.FC<QRCodeUploadModalProps> = ({ onClose, onFileUp
           });
       } else if (data.status === 'error') {
         setUploadStatus('error');
+        setStatusMessage(data.message || 'An error occurred');
       }
     };
     
@@ -122,10 +128,12 @@ const QRCodeUploadModal: React.FC<QRCodeUploadModalProps> = ({ onClose, onFileUp
             </>
           )}
           
-          {uploadStatus === 'uploading' && (
+          {(uploadStatus === 'uploading' || uploadStatus === 'processing') && (
             <div className="py-8 text-center">
               <div className="w-16 h-16 border-4 border-t-blue-600 border-blue-200 rounded-full animate-spin mx-auto mb-4"></div>
-              <p className="text-slate-600">Receiving your photo...</p>
+              <p className="text-slate-600">
+                {uploadStatus === 'uploading' ? 'Receiving your photo...' : statusMessage}
+              </p>
             </div>
           )}
           
@@ -134,7 +142,7 @@ const QRCodeUploadModal: React.FC<QRCodeUploadModalProps> = ({ onClose, onFileUp
               <svg className="w-16 h-16 mx-auto mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
               </svg>
-              <p>Photo uploaded successfully!</p>
+              <p>Photo uploaded and processed successfully!</p>
             </div>
           )}
           
@@ -143,7 +151,7 @@ const QRCodeUploadModal: React.FC<QRCodeUploadModalProps> = ({ onClose, onFileUp
               <svg className="w-16 h-16 mx-auto mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
               </svg>
-              <p>Error uploading photo. Please try again.</p>
+              <p>{statusMessage || 'Error uploading photo. Please try again.'}</p>
               <button 
                 onClick={() => setUploadStatus('waiting')}
                 className="mt-4 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors"

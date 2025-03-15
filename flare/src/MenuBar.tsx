@@ -37,17 +37,23 @@ const MenuBar: React.FC<MenuBarProps> = ({ editor }) => {
     setShowMetricsPanel(true);
   };
 
-  const handleFileUploaded = (file: File) => {
-    // Insert image into the editor
+  const handleFileUploaded = (file: File, extractedText?: string) => {
     if (file.type.startsWith('image/')) {
+      // Insert image if needed
       const reader = new FileReader();
       reader.onload = (e) => {
         if (e.target && e.target.result && typeof e.target.result === 'string') {
-          editor
-            .chain()
-            .focus()
-            .setImage({ src: e.target.result })
-            .run();
+          // If text was extracted, insert it first
+          if (extractedText) {
+            editor.chain().focus().insertContent(extractedText).run();
+            
+            // Optionally insert the image after the text
+            // Uncomment the next line if you want to include the image too
+            // editor.chain().focus().setImage({ src: e.target.result }).run();
+          } else {
+            // If no text was extracted, just insert the image
+            editor.chain().focus().setImage({ src: e.target.result }).run();
+          }
         }
       };
       reader.readAsDataURL(file);
