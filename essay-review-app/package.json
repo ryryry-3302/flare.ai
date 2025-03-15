@@ -1,0 +1,22 @@
+{
+  "name": "essay-review-app",
+  "version": "1.0.0",
+  "description": "A text editor app to help kids review their essays using AI analysis.",
+  "main": "index.js",
+  "scripts": {
+    "start": "concurrently \"npm run start --prefix client\" \"npm run start --prefix server\"",
+    "client": "npm start --prefix client",
+    "server": "npm start --prefix server",
+    "build": "npm run build --prefix client",
+    "test": "npm test --prefix client && npm test --prefix server"
+  },
+  "dependencies": {
+    "concurrently": "^6.0.0"
+  },
+  "devDependencies": {
+    "eslint": "^7.0.0",
+    "prettier": "^2.0.0"
+  },
+  "author": "Your Name",
+  "license": "MIT"
+}
