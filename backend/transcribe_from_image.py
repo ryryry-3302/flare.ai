@@ -7,13 +7,28 @@ load_dotenv()
 
 client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
 
-def extract_text_from_image(image_path):
-    organ = PIL.Image.open(image_path)
-    response = client.models.generate_content(
-        model="gemini-2.0-flash-thinking-exp-01-21", contents=["Extract text", organ]
-    )
-    return response.text
+def extract_text_from_images_with_prefix(prefix):
+    prompt = "Extract text from the image and return it as it is, keeping the grammar and spelling mistakes."
+    results = []
+
+    # Get a list of all files in the current directory
+    for dirpath, _, filenames in os.walk('.'):
+        for filename in filenames:
+            full_filename = os.path.join(dirpath, filename)
+            # Check if the file starts with the given prefix and is an image
+            full_filename = full_filename.replace('\\', '/')
+            prefix = prefix.replace('\\', '/')
+            print(f"Checking file: {full_filename}")
+            if prefix in full_filename and filename.lower().endswith(('.png', '.jpg', '.jpeg')):
+                image = PIL.Image.open(full_filename)
+                response = client.models.generate_content(
+                    model="gemini-2.0-flash", contents=[prompt, image]
+                )
+                results.append(response.text)
+    return results
 
 if __name__ == "__main__":
-    result = extract_text_from_image("media\Anchor  - 2a_page_1.png")
-    print(result)
+    image_prefix = "media/Anchor - 6"
+    results = extract_text_from_images_with_prefix(image_prefix)
+    for text in results:
+        print(text)
