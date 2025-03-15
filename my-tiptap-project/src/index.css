@@ -26,3 +26,48 @@
 .ProseMirror blockquote {
   @apply border-l-4 border-gray-300 pl-4 italic my-4;
 }
+
+/* Comment marker style */
+.comment-marker {
+  background-color: rgba(255, 220, 0, 0.2);
+  position: relative;
+  cursor: pointer;
+  border-bottom: 2px dotted #fbbf24;
+  transition: background-color 0.2s;
+}
+
+.comment-marker:hover {
+  background-color: rgba(255, 220, 0, 0.4);
+}
+
+/* Add a pulse animation for active comments */
+.comment-marker[data-active="true"] {
+  background-color: rgba(255, 220, 0, 0.4);
+  border-bottom: 2px solid #f59e0b;
+}
+
+
+.essay-comment-mark {
+  background-color: rgba(251, 191, 36, 0.2);
+  position: relative;
+}
+
+.comment-number {
+  color: #2563eb;
+  font-weight: bold;
+  font-size: 0.7em;
+}
+
+/* Also add numbering to the comments */
+.comment-box {
+  counter-increment: comment-counter;
+}
+
+.comment-box::before {
+  content: "[" counter(comment-counter) "]";
+  position: absolute;
+  top: 15px;
+  right: 15px;
+  color: #2563eb;
+  font-weight: bold;
+}
