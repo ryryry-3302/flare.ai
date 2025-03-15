@@ -1,6 +1,5 @@
-import { Extension, Mark, markPasteRule } from '@tiptap/core';
+import { Extension, Mark} from '@tiptap/core';
 import { Plugin, PluginKey } from '@tiptap/pm/state';
-import { v4 as uuidv4 } from 'uuid';
 
 interface CommentOptions {
   HTMLAttributes: Record<string, any>;
