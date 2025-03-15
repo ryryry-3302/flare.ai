@@ -10,7 +10,7 @@ import threading
 import socket
 from flask_cors import CORS
 import PIL.Image
-from multimodal_extract_text import extract_text  # Use the unified extraction function
+from multimodal_extract_text import extract_text, clean_extracted_text  # Use the unified extraction function
 
 app = Flask(__name__)
 CORS(app)  # This enables CORS for all routes
@@ -62,10 +62,22 @@ def handle_document_upload(session_id, file, is_pdf=False):
             notify_clients(session_id, data)
             
         # Extract text using multimodal_extract_text with progress notifications
-        results = extract_text(filepath, notify_callback=notify_progress)
+        text_results = extract_text(filepath, notify_callback=notify_progress)
         
-        # Combine all text results
-        extracted_text = "\n\n".join(results) if results else ""
+        # Process text results based on document type
+        if is_pdf and len(text_results) > 1:
+            # For multi-page PDFs, add page markers and join with extra spacing
+            processed_results = []
+            for i, page_text in enumerate(text_results):
+                cleaned_text = clean_extracted_text(page_text)
+                if i > 0:
+                    processed_results.append(f"\n\n--- Page {i+1} ---\n\n{cleaned_text}")
+                else:
+                    processed_results.append(cleaned_text)
+            extracted_text = "\n\n".join(processed_results)
+        else:
+            # For single images or single-page PDFs, just clean the text
+            extracted_text = "\n\n".join([clean_extracted_text(text) for text in text_results]) if text_results else ""
         
         # Notify clients that file is processed
         notify_clients(session_id, {
