@@ -38,7 +38,7 @@ class RubricScore(TypedDict):
 client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
 
 def grade_essay(essay):
-    with open('media/rubrics.txt', 'r') as file:
+    with open('media/rubrics_v2.txt', 'r') as file:
         rubrics = file.read()
     prompt = f"""
             You are an expert in evaluating essays. Your task is to evaluate the given essay based on the provided rubrics.
@@ -66,7 +66,9 @@ def grade_essay(essay):
     return response.text
 
 if __name__ == "__main__":
-    from transcribe_from_image import extract_text_from_image
-    essay = extract_text_from_image("media\Anchor  - 2a_page_1.png")
+    from transcribe_from_image import extract_text_from_images_with_prefix
+    essay_parts = extract_text_from_images_with_prefix("media\Anchor - 6")
+    essay = " ".join(essay_parts)
+    print(essay)
     score = grade_essay(essay)
     print(score)
