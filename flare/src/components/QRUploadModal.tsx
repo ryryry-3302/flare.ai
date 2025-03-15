@@ -126,6 +126,19 @@ const QRCodeUploadModal: React.FC<QRCodeUploadModalProps> = ({ onClose, onFileUp
                 <p className="mt-2 text-xs text-slate-500 break-all">
                   {uploadUrl || 'Generating URL...'}
                 </p>
+                
+                {/* Add button to open in new tab */}
+                {uploadUrl && (
+                  <button
+                    onClick={() => window.open(uploadUrl, '_blank')}
+                    className="mt-4 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors flex items-center justify-center mx-auto"
+                  >
+                    <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path>
+                    </svg>
+                    Open in Browser
+                  </button>
+                )}
               </div>
               <div className="mt-4 text-sm text-slate-500 text-center">
                 <p>1. Open your camera app</p>

@@ -38,14 +38,57 @@ const MenuBar: React.FC<MenuBarProps> = ({ editor }) => {
   };
 
   const handleFileUploaded = (file: File, extractedText?: string) => {
-    // If we have extracted text, insert it into the editor
     if (extractedText) {
-      editor.chain().focus().insertContent(extractedText).run();
+      try {
+        // Check if the text contains page markers
+        const hasPageMarkers = extractedText.includes('--- Page');
+        
+        // Split by page markers first if they exist
+        let sections = hasPageMarkers 
+          ? extractedText.split(/---\s*Page \d+\s*---/).filter(Boolean)
+          : [extractedText];
+        
+        // Create document content
+        let documentContent: any[] = [];
+        
+        // Process each section (page)
+        sections.forEach((section, sectionIndex) => {
+          // If not the first section, add an extra line break for page separation
+          if (hasPageMarkers && sectionIndex > 0) {
+            // Add a horizontal rule as page separator (optional)
+            documentContent.push({
+              type: 'horizontalRule'
+            });
+          }
+          
+          // Process paragraphs in this section
+          const paragraphs = section.split('\n\n')
+            .map(p => p.trim())
+            .filter(Boolean);
+          
+          // Add each paragraph
+          paragraphs.forEach(paragraph => {
+            documentContent.push({
+              type: 'paragraph',
+              content: [{ type: 'text', text: paragraph }]
+            });
+          });
+        });
+        
+        // Create the full document structure
+        const content = {
+          type: 'doc',
+          content: documentContent
+        };
+        
+        // Insert the document into the editor
+        editor.chain().focus().setContent(content).run();
+      } catch (error) {
+        console.error('Error formatting text:', error);
+        // Fallback to simple text insertion
+        editor.chain().focus().insertContent(extractedText).run();
+      }
     } 
-    // If it's an image and we want to insert it (optional)
-    else {
-      editor.chain().focus().insertContent("Error extracting text").run();
-    }
   };
 
   return (
