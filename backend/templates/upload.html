@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Upload Photo</title>
+    <title>Upload Document</title>
     <style>
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
@@ -50,11 +50,19 @@
         }
         .preview {
             margin-top: 20px;
+            max-height: 300px;
+            overflow: auto;
         }
         .preview img {
             max-width: 100%;
             max-height: 300px;
             border-radius: 8px;
+        }
+        .preview .pdf-preview {
+            background-color: #f3f4f6;
+            padding: 10px;
+            border-radius: 8px;
+            text-align: center;
         }
         .status {
             margin-top: 20px;
@@ -73,37 +81,111 @@
             color: #991b1b;
             display: block;
         }
+        .tabs {
+            display: flex;
+            margin-bottom: 20px;
+        }
+        .tab {
+            flex: 1;
+            text-align: center;
+            padding: 10px;
+            cursor: pointer;
+            border-bottom: 2px solid #e5e7eb;
+        }
+        .tab.active {
+            border-bottom: 2px solid #4f46e5;
+            font-weight: bold;
+            color: #4f46e5;
+        }
     </style>
 </head>
 <body>
-    <h1>Upload Photo</h1>
+    <h1>Upload Document</h1>
+    
+    <div class="tabs">
+        <div class="tab active" id="tab-photo">Photo</div>
+        <div class="tab" id="tab-pdf">PDF Document</div>
+    </div>
+    
     <form id="upload-form">
         <div class="upload-area">
-            <label for="file-input">Select Photo</label>
+            <label for="file-input" id="file-label">Select Photo</label>
             <input id="file-input" type="file" accept="image/*" capture>
             <div class="preview" id="preview"></div>
         </div>
-        <button type="submit" id="upload-button" disabled>Upload Photo</button>
+        <button type="submit" id="upload-button" disabled>Upload</button>
     </form>
     <div class="status" id="status"></div>
     
     <script>
         const sessionId = '{{ session_id }}';
         const fileInput = document.getElementById('file-input');
+        const fileLabel = document.getElementById('file-label');
         const preview = document.getElementById('preview');
         const uploadButton = document.getElementById('upload-button');
         const status = document.getElementById('status');
         const form = document.getElementById('upload-form');
+        const tabPhoto = document.getElementById('tab-photo');
+        const tabPdf = document.getElementById('tab-pdf');
+        
+        let isPhotoMode = true;
+        
+        tabPhoto.addEventListener('click', () => {
+            isPhotoMode = true;
+            tabPhoto.classList.add('active');
+            tabPdf.classList.remove('active');
+            fileInput.setAttribute('accept', 'image/*');
+            fileLabel.textContent = 'Select Photo';
+            preview.innerHTML = '';
+            uploadButton.disabled = true;
+        });
+        
+        tabPdf.addEventListener('click', () => {
+            isPhotoMode = false;
+            tabPdf.classList.add('active');
+            tabPhoto.classList.remove('active');
+            fileInput.setAttribute('accept', '.pdf');
+            fileLabel.textContent = 'Select PDF Document';
+            preview.innerHTML = '';
+            uploadButton.disabled = true;
+        });
         
         fileInput.addEventListener('change', () => {
             const file = fileInput.files[0];
-            if (file) {
+            if (!file) return;
+            
+            if (isPhotoMode && !file.type.startsWith('image/')) {
+                alert('Please select an image file.');
+                fileInput.value = '';
+                return;
+            }
+            
+            if (!isPhotoMode && !file.name.toLowerCase().endsWith('.pdf')) {
+                alert('Please select a PDF file.');
+                fileInput.value = '';
+                return;
+            }
+            
+            if (isPhotoMode) {
                 const reader = new FileReader();
                 reader.onload = (e) => {
                     preview.innerHTML = `<img src="${e.target.result}" alt="Preview">`;
                     uploadButton.disabled = false;
                 };
                 reader.readAsDataURL(file);
+            } else {
+                preview.innerHTML = `
+                    <div class="pdf-preview">
+                        <svg width="50" height="50" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M14 2H6C4.89543 2 4 2.89543 4 4V20C4 21.1046 4.89543 22 6 22H18C19.1046 22 20 21.1046 20 20V8L14 2Z" stroke="#4F46E5" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                            <path d="M14 2V8H20" stroke="#4F46E5" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                            <path d="M12 18V12" stroke="#4F46E5" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                            <path d="M9 15H15" stroke="#4F46E5" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        </svg>
+                        <p>${file.name}</p>
+                    </div>
+                `;
+                uploadButton.disabled = false;
             }
         });
         
@@ -114,33 +196,47 @@
             
             uploadButton.disabled = true;
             uploadButton.textContent = 'Uploading...';
+            status.className = 'status';
+            status.textContent = '';
             
             const formData = new FormData();
             formData.append('file', file);
             
             try {
-                const response = await fetch(`/api/upload/${sessionId}`, {
+                const endpoint = isPhotoMode 
+                    ? `/api/upload/${sessionId}` 
+                    : `/api/upload-pdf/${sessionId}`;
+                
+                const response = await fetch(endpoint, {
                     method: 'POST',
                     body: formData,
                 });
                 
-                const result = await response.json();
-                
-                if (response.ok) {
-                    status.className = 'status success';
-                    status.textContent = 'Upload successful! You can close this page now.';
+                // Check if response is JSON
+                const contentType = response.headers.get('content-type');
+                if (contentType && contentType.includes('application/json')) {
+                    const result = await response.json();
+                    
+                    if (response.ok) {
+                        status.className = 'status success';
+                        status.textContent = 'Upload successful! You can close this page now.';
+                    } else {
+                        status.className = 'status error';
+                        status.textContent = result.error || 'Upload failed. Please try again.';
+                        uploadButton.disabled = false;
+                        uploadButton.textContent = isPhotoMode ? 'Upload Photo' : 'Upload PDF';
+                    }
                 } else {
-                    status.className = 'status error';
-                    status.textContent = result.error || 'Upload failed. Please try again.';
-                    uploadButton.disabled = false;
-                    uploadButton.textContent = 'Upload Photo';
+                    // Handle non-JSON response
+                    const text = await response.text();
+                    throw new Error('Server returned non-JSON response: ' + text);
                 }
             } catch (error) {
                 console.error('Error uploading file:', error);
                 status.className = 'status error';
-                status.textContent = 'Upload failed. Please try again.';
+                status.textContent = 'Upload failed: ' + error.message;
                 uploadButton.disabled = false;
-                uploadButton.textContent = 'Upload Photo';
+                uploadButton.textContent = isPhotoMode ? 'Upload Photo' : 'Upload PDF';
             }
         });
     </script>

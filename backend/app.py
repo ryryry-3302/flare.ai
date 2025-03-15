@@ -10,7 +10,7 @@ import threading
 import socket
 from flask_cors import CORS
 import PIL.Image
-from transcribe_from_image import extract_text_from_image  # Import the transcription function
+from multimodal_extract_text import extract_text  # Use the unified extraction function
 
 app = Flask(__name__)
 CORS(app)  # This enables CORS for all routes
@@ -26,27 +26,6 @@ sessions = {}
 
 # Lock for thread-safe session management
 session_lock = threading.Lock()
-
-# Add this function to extract text from a single image
-def extract_text_from_image(image_path):
-    """Extract text from a single image file using Gemini API"""
-    from google import genai
-    import PIL.Image
-    
-    # Use the client from transcribe_from_image.py
-    from transcribe_from_image import client
-    
-    prompt = "Extract text from the image and return it as it is, keeping the grammar and spelling mistakes."
-    image = PIL.Image.open(image_path)
-    
-    try:
-        response = client.models.generate_content(
-            model="gemini-2.0-flash", contents=[prompt, image]
-        )
-        return response.text
-    except Exception as e:
-        print(f"Error extracting text: {str(e)}")
-        return ""
 
 class MessageAnnouncer:
     def __init__(self):
@@ -65,6 +44,51 @@ class MessageAnnouncer:
             except:
                 del self.listeners[i]
 
+# Unified handler for both image and PDF uploads
+def handle_document_upload(session_id, file, is_pdf=False):
+    try:
+        # Create session directory if it doesn't exist
+        session_dir = os.path.join(app.config['UPLOAD_FOLDER'], session_id)
+        os.makedirs(session_dir, exist_ok=True)
+        
+        # Save file with unique name
+        timestamp = datetime.now().strftime('%Y%m%d-%H%M%S')
+        filename = f"{timestamp}-{secure_filename(file.filename)}"
+        filepath = os.path.join(session_dir, filename)
+        file.save(filepath)
+        
+        # Create a notification callback for this session
+        def notify_progress(data):
+            notify_clients(session_id, data)
+            
+        # Extract text using multimodal_extract_text with progress notifications
+        results = extract_text(filepath, notify_callback=notify_progress)
+        
+        # Combine all text results
+        extracted_text = "\n\n".join(results) if results else ""
+        
+        # Notify clients that file is processed
+        notify_clients(session_id, {
+            'status': 'success',
+            'filename': filename,
+            'extractedText': extracted_text
+        })
+        
+        return {
+            'success': True,
+            'fileInfo': {
+                'filename': filename,
+                'size': os.path.getsize(filepath),
+                'path': filepath
+            },
+            'extractedText': extracted_text
+        }
+    except Exception as e:
+        error_msg = f"Error processing {'PDF' if is_pdf else 'image'}: {str(e)}"
+        print(error_msg)
+        notify_clients(session_id, {'status': 'error', 'message': error_msg})
+        return {'error': error_msg}, 500
+
 @app.route('/api/upload/<session_id>', methods=['POST'])
 def upload_file(session_id):
     if 'file' not in request.files:
@@ -76,37 +100,34 @@ def upload_file(session_id):
         notify_clients(session_id, {'status': 'error', 'message': 'No selected file'})
         return jsonify({'error': 'No selected file'}), 400
     
-    if file:
-        # Create session directory if it doesn't exist
-        session_dir = os.path.join(app.config['UPLOAD_FOLDER'], session_id)
-        os.makedirs(session_dir, exist_ok=True)
-        
-        # Save file with unique name
-        timestamp = datetime.now().strftime('%Y%m%d-%H%M%S')
-        filename = f"{timestamp}-{secure_filename(file.filename)}"
-        filepath = os.path.join(session_dir, filename)
-        file.save(filepath)
-        
-        # Extract text from the image
-        notify_clients(session_id, {'status': 'processing', 'message': 'Extracting text from image...'})
-        extracted_text = extract_text_from_image(filepath)
-        
-        # Notify clients that file is uploaded and text extracted
-        notify_clients(session_id, {
-            'status': 'success',
-            'filename': filename,
-            'extractedText': extracted_text
-        })
-        
-        return jsonify({
-            'success': True,
-            'fileInfo': {
-                'filename': filename,
-                'size': os.path.getsize(filepath),
-                'path': filepath
-            },
-            'extractedText': extracted_text
-        })
+    if file and file.filename.lower().endswith(('.jpg', '.jpeg', '.png')):
+        result = handle_document_upload(session_id, file, is_pdf=False)
+        if isinstance(result, tuple):  # Error case
+            return jsonify(result[0]), result[1]
+        return jsonify(result)
+    else:
+        notify_clients(session_id, {'status': 'error', 'message': 'Invalid image format'})
+        return jsonify({'error': 'Invalid image format'}), 400
+
+@app.route('/api/upload-pdf/<session_id>', methods=['POST'])
+def upload_pdf(session_id):
+    if 'file' not in request.files:
+        notify_clients(session_id, {'status': 'error', 'message': 'No file part'})
+        return jsonify({'error': 'No file part'}), 400
+    
+    file = request.files['file']
+    if file.filename == '':
+        notify_clients(session_id, {'status': 'error', 'message': 'No selected file'})
+        return jsonify({'error': 'No selected file'}), 400
+    
+    if file and file.filename.lower().endswith('.pdf'):
+        result = handle_document_upload(session_id, file, is_pdf=True)
+        if isinstance(result, tuple):  # Error case
+            return jsonify(result[0]), result[1]
+        return jsonify(result)
+    else:
+        notify_clients(session_id, {'status': 'error', 'message': 'Invalid PDF format'})
+        return jsonify({'error': 'Invalid PDF format'}), 400
 
 @app.route('/api/upload-status/<session_id>')
 def upload_status(session_id):
@@ -122,8 +143,13 @@ def upload_status(session_id):
         
         # Then stream updates
         while True:
-            msg = messages.get()  # Blocks until a message is available
-            yield f"data: {json.dumps(msg)}\n\n"
+            try:
+                msg = messages.get()  # Blocks until a message is available
+                yield f"data: {json.dumps(msg)}\n\n"
+            except Exception as e:
+                print(f"Error sending SSE update: {str(e)}")
+                yield f"data: {json.dumps({'status': 'error', 'message': 'Server error'})}\n\n"
+                break
     
     return Response(stream(), mimetype="text/event-stream")
 

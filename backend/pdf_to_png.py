@@ -1,5 +1,6 @@
 import fitz
 from pathlib import Path
+import os
 
 def pdf_to_images(pdf_path, output_folder="media", fmt="png", zoom=4.0):
     """
@@ -29,6 +30,8 @@ def pdf_to_images(pdf_path, output_folder="media", fmt="png", zoom=4.0):
 
     return image_paths
 
-# Example usage:
-image_files = pdf_to_images("media\Anchor - 6.pdf")
-print(image_files)
+# Only run this code when the script is executed directly
+if __name__ == "__main__":
+    # Example usage:
+    image_files = pdf_to_images(os.path.join("media", "Anchor - 6.pdf"))
+    print(image_files)

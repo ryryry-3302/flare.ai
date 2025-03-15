@@ -1,23 +1,65 @@
 from pdf_to_png import pdf_to_images
-from transcribe_from_image import extract_text_from_images_with_prefix
+from transcribe_from_image import extract_text_from_image
 import os
+import tempfile
+import shutil
 
-def extract_text(input_file):
-    if input_file.endswith('.pdf'):
-        # Convert PDF to images and save them in the same directory as the PDF
-        image_files = pdf_to_images(input_file, output_folder="media", fmt="png", zoom=4.0)
-        # Extract text from the images using the prefix (without file extension)
-        prefix = os.path.splitext(os.path.basename(input_file))[0]
-        results = extract_text_from_images_with_prefix(f"media/{prefix}")
-    elif input_file.endswith(('.png', '.jpg', '.jpeg')):
-        # Extract text from the image file using its prefix (without extension)
-        prefix = os.path.splitext(os.path.basename(input_file))[0]
-        directory = os.path.dirname(input_file)
-        results = extract_text_from_images_with_prefix(f"{directory}/{prefix}" if directory else prefix)
+def extract_text(input_file, notify_callback=None):
+    """
+    Extract text from either PDF or image files
+    
+    Args:
+        input_file (str): Path to the input file (PDF or image)
+        notify_callback (function, optional): Callback for progress updates
+    
+    Returns:
+        list: List of extracted text strings
+    """
+    results = []
+
+    try:
+        if input_file.endswith('.pdf'):
+            # Create a temporary directory for the images
+            with tempfile.TemporaryDirectory() as temp_dir:
+                # Convert PDF to images
+                if notify_callback:
+                    notify_callback({'status': 'processing', 'message': 'Converting PDF to images...'})
+                
+                image_files = pdf_to_images(input_file, output_folder=temp_dir)
+                
+                # Extract text from each image
+                for i, img_path in enumerate(image_files):
+                    if notify_callback:
+                        notify_callback({
+                            'status': 'processing', 
+                            'message': f'Processing page {i+1} of {len(image_files)}...'
+                        })
+                    
+                    # Use the single image extraction function directly
+                    text = extract_text_from_image(img_path)
+                    if text:
+                        results.append(text)
+        
+        elif input_file.endswith(('.png', '.jpg', '.jpeg')):
+            # For a single image, just extract text directly
+            if notify_callback:
+                notify_callback({'status': 'processing', 'message': 'Extracting text from image...'})
+            
+            text = extract_text_from_image(input_file)
+            if text:
+                results.append(text)
+        else:
+            raise ValueError(f"Unsupported file format: {input_file}")
+    
+    except Exception as e:
+        if notify_callback:
+            notify_callback({'status': 'error', 'message': f'Error extracting text: {str(e)}'})
+        raise e
+    
     return results
 
 if __name__ == "__main__":
-    input_file = "media/Anchor - 6_page_1.png"  # Replace with your input file path
+    input_file = "media/sample.pdf"  # Replace with your input file path
     results = extract_text(input_file)
     print("Extracted Text:")
     for text in results:
