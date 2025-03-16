@@ -1,310 +1,332 @@
-import React, { useState } from 'react';
-import { FaTimes, FaCheck, FaBookOpen, FaChartLine, FaPen, FaSortAmountUp, FaVolumeUp } from 'react-icons/fa';
-import { motion, AnimatePresence } from 'framer-motion';
+import React, { useState, useEffect, useRef } from 'react';
+import { Editor } from '@tiptap/react';
+import { FaTimes, FaSpinner } from 'react-icons/fa';
+import { motion } from 'framer-motion';
+import { generateReport } from '../utils/reportGenerator';
+import * as Tooltip from '@radix-ui/react-tooltip';
 
-// Define rubric levels
-const rubricLevels = {
-  1: { name: "Beginning", color: "#ef4444" },      // red-500
-  2: { name: "Developing", color: "#f97316" },     // orange-500
-  3: { name: "Proficient", color: "#eab308" },     // yellow-500
-  4: { name: "Advanced", color: "#22c55e" },       // green-500
-  5: { name: "Exceptional", color: "#3b82f6" },    // blue-500
+interface MetricsPanelProps {
+  onClose: () => void;
+  regenerateKey?: number;
+  editor: Editor | null;
+  initialAnalysis?: RubricScore[]; // Add this
+  onAnalysisComplete?: (analysis: RubricScore[]) => void; // Add this
+}
+
+interface Comment {
+  comment: string;
+  start_index: number;
+  end_index: number;
+}
+
+interface RubricScore {
+  category: string;
+  score: number;
+  explanation: string[];
+  comments: Comment[];
+}
+
+const categoryColors: Record<string, string> = {
+  "Content (Ideas and Development)": "bg-blue-100 border-blue-500",
+  "Structure (Organization)": "bg-green-100 border-green-500",
+  "Stance (Voice and Tone)": "bg-purple-100 border-purple-500",
+  "Word Choice (Diction)": "bg-yellow-100 border-yellow-500",
+  "Sentence Fluency": "bg-indigo-100 border-indigo-500",
+  "Conventions": "bg-red-100 border-red-500",
 };
 
-// Detailed descriptions for each rubric category at each level
-const rubricDescriptions = {
-  ideas: {
-    1: "Limited development of ideas; lacks clarity and focus.",
-    2: "Basic ideas present but underdeveloped; limited support.",
-    3: "Clear main idea with adequate supporting details.",
-    4: "Well-developed ideas with strong supporting evidence.",
-    5: "Exceptional depth of ideas with compelling, relevant support."
-  },
-  organization: {
-    1: "Difficult to follow; lacks structure and transitions.",
-    2: "Attempted organization with weak transitions.",
-    3: "Clear structure with basic transitions between ideas.",
-    4: "Strong organization with effective transitions.",
-    5: "Masterful organization enhances the essay's impact."
-  },
-  voice: {
-    1: "Voice is flat or inappropriate for the purpose.",
-    2: "Inconsistent or developing voice.",
-    3: "Clear, appropriate voice for the topic.",
-    4: "Engaging voice that enhances the writing.",
-    5: "Distinctive, compelling voice perfectly suited to purpose."
-  },
-  wordChoice: {
-    1: "Limited vocabulary with frequent errors.",
-    2: "Basic vocabulary with occasional misuse.",
-    3: "Appropriate word choice with some variety.",
-    4: "Precise, varied vocabulary enhances meaning.",
-    5: "Rich, nuanced vocabulary with masterful precision."
-  },
-  sentenceFluency: {
-    1: "Choppy, awkward sentences disrupt reading.",
-    2: "Simple sentences with limited variety.",
-    3: "Clear sentences with some variety in structure.",
-    4: "Varied sentence structure enhances flow and meaning.",
-    5: "Artful sentence construction creates fluid, engaging reading."
-  },
-  conventions: {
-    1: "Frequent errors in grammar, punctuation, and spelling.",
-    2: "Several errors that occasionally distract the reader.",
-    3: "Few errors that don't interfere with meaning.",
-    4: "Strong command of conventions with minimal errors.",
-    5: "Nearly flawless mechanics strengthen the writing."
-  }
+const getScoreColor = (score: number): string => {
+  if (score >= 4.5) return 'text-green-600';
+  if (score >= 3.5) return 'text-blue-600';
+  if (score >= 2.5) return 'text-yellow-600';
+  return 'text-red-600';
 };
 
-// Generate random score for each category
-const generateRubricScore = () => Math.floor(Math.random() * 5) + 1; // 1-5
+// Update the ScoreBar component
 
-// Helper to create initial random scores only once
-const createInitialScores = () => ({
-  ideas: generateRubricScore(),
-  organization: generateRubricScore(),
-  wordChoice: generateRubricScore(),
-  sentenceFluency: generateRubricScore(),
-  voice: generateRubricScore(),
-  conventions: generateRubricScore(),
-});
-
-const MetricsPanel: React.FC<{ onClose: () => void }> = ({ onClose }) => {
-  // Generate random scores only once when this component mounts (i.e. when user clicks the panel button)
-  const [rubricScores] = useState(createInitialScores);
-
-  // Track which category has an active tooltip
-  const [activeTooltip, setActiveTooltip] = useState<string | null>(null);
-
-  // Calculate overall score (1-5 scale)
-  const overallScore = 
-    Object.values(rubricScores).reduce((sum, score) => sum + score, 0) / 
-    Object.keys(rubricScores).length;
+const ScoreBar: React.FC<{ score: number; maxScore: number }> = ({ score, maxScore }) => {
+  const percentage = (score / maxScore) * 100;
+  const barColor = getScoreColor(score).replace('text-', 'bg-');
   
-  // Format for display (round to nearest tenth)
-  const formattedOverallScore = overallScore.toFixed(1);
+  return (
+    <div className="w-full bg-gray-200 rounded-full h-2.5 my-2">
+      <div 
+        className={`${barColor} h-2.5 rounded-full transition-all duration-500 ease-out`}
+        style={{ width: `${percentage}%` }}
+      />
+    </div>
+  );
+};
+
+const MetricsPanel: React.FC<MetricsPanelProps> = ({ 
+  onClose, 
+  regenerateKey = 0, 
+  editor,
+  initialAnalysis = [],
+  onAnalysisComplete
+}) => {
+  const [isLoading, setIsLoading] = useState(initialAnalysis.length === 0);
+  const [error, setError] = useState<string | null>(null);
+  const [analysis, setAnalysis] = useState<RubricScore[]>(initialAnalysis);
+  const [wordCount, setWordCount] = useState(0);
+  const [isRegenerating, setIsRegenerating] = useState(false);
+
+  const essayTextRef = useRef<string>('');
+
+  useEffect(() => {
+    if (editor) {
+      try {
+        // Capture the text immediately to avoid timing issues
+        const rawText = editor.getText();
+        const html = editor.getHTML();
+        
+        console.log("Editor state:", { 
+          rawTextLength: rawText?.length,
+          htmlLength: html?.length,
+          isEmpty: editor.isEmpty
+        });
+        
+        // Try multiple methods to get content
+        if (rawText && rawText.trim().length > 0) {
+          essayTextRef.current = rawText;
+        } else if (html && html !== '<p></p>') {
+          // If getText() returns empty but HTML exists, use a simplified version of HTML
+          const tempDiv = document.createElement('div');
+          tempDiv.innerHTML = html;
+          essayTextRef.current = tempDiv.textContent || '';
+        } else {
+          // If both methods fail, check if we can get content directly from the editor state
+          const docContent = editor.state.doc.textContent;
+          essayTextRef.current = docContent || '';
+        }
+        
+        console.log("Captured essay text, length:", essayTextRef.current.length);
+        
+        // If we still have no text, set an error
+        if (!essayTextRef.current || essayTextRef.current.trim().length === 0) {
+          console.warn("No content could be extracted from the editor");
+          setError("No essay content to analyze. Please add some text to your essay first.");
+          setIsLoading(false);
+        }
+      } catch (err) {
+        console.error("Error capturing essay text:", err);
+        setError("Failed to get essay text from editor");
+        setIsLoading(false);
+      }
+    } else {
+      console.error("Editor is null on initial render");
+      setError("Editor not available");
+      setIsLoading(false);
+    }
+  }, [editor]);
+
+  useEffect(() => {
+    const analyzeEssay = async () => {
+      if (!essayTextRef.current || essayTextRef.current.trim().length === 0) {
+        return;
+      }
   
-  // Calculate letter grade
-  const getLetterGrade = (score: number) => {
-    if (score >= 4.5) return 'A+';
-    if (score >= 4.0) return 'A';
-    if (score >= 3.7) return 'A-';
-    if (score >= 3.3) return 'B+';
-    if (score >= 3.0) return 'B';
-    if (score >= 2.7) return 'B-';
-    if (score >= 2.3) return 'C+';
-    if (score >= 2.0) return 'C';
-    if (score >= 1.7) return 'C-';
-    if (score >= 1.3) return 'D+';
-    if (score >= 1.0) return 'D';
-    return 'F';
+      setIsLoading(true);
+      setError(null);
+  
+      try {
+        console.log("Sending essay for analysis...");
+        const response = await fetch('http://localhost:5000/api/analyze-essay', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            essay: essayTextRef.current
+          }),
+        });
+  
+        if (!response.ok) {
+          const errorText = await response.text();
+          throw new Error(`Analysis failed: ${errorText}`);
+        }
+  
+        const data = await response.json();
+        console.log("Received analysis:", data);
+        
+        if (data.success && data.analysis) {
+          // Update word count
+          setWordCount(essayTextRef.current.split(/\s+/).filter(Boolean).length);
+          
+          // Set analysis results
+          updateAnalysis(data.analysis);
+        } else {
+          throw new Error(data.error || 'Failed to analyze essay');
+        }
+      } catch (err) {
+        console.error('Error analyzing essay:', err);
+        setError(err instanceof Error ? err.message : String(err));
+      } finally {
+        setIsLoading(false);
+      }
+    };
+  
+    // Only analyze if we're regenerating OR if we have no existing analysis
+    if (isRegenerating || (analysis.length === 0 && !error)) {
+      analyzeEssay();
+      setIsRegenerating(false);
+    }
+  }, [regenerateKey, isRegenerating]); // Only run when regenerateKey or isRegenerating changes
+
+  const handleRegenerate = () => {
+    setIsRegenerating(true);
   };
 
-  // Category display names and icons
-  const categoryConfig = {
-    ideas: { name: "Ideas & Content", icon: <FaPen /> },
-    organization: { name: "Organization", icon: <FaSortAmountUp /> },
-    voice: { name: "Voice", icon: <FaVolumeUp /> },
-    wordChoice: { name: "Word Choice", icon: <FaBookOpen /> },
-    sentenceFluency: { name: "Sentence Fluency", icon: <FaChartLine /> },
-    conventions: { name: "Conventions", icon: <FaCheck /> }
+  // Update the analysis setter to also call onAnalysisComplete
+  const updateAnalysis = (newAnalysis: RubricScore[]) => {
+    setAnalysis(newAnalysis);
+    onAnalysisComplete?.(newAnalysis);
   };
-  
-  // Get improvement suggestions based on lowest scores
-  const getImprovementSuggestions = () => {
-    const entries = Object.entries(rubricScores) as [keyof typeof rubricScores, number][];
-    const sortedByScore = [...entries].sort((a, b) => a[1] - b[1]);
-    const lowestCategories = sortedByScore.slice(0, 3);
-    
-    return lowestCategories.map(([category, score]) => {
-      const categoryName = categoryConfig[category].name;
-      const nextLevel = Math.min(score + 1, 5);
-      const improvementText = rubricDescriptions[category as keyof typeof rubricDescriptions][nextLevel as keyof typeof rubricDescriptions[typeof category]];
-      
-      return {
-        category: categoryName,
-        suggestion: `To improve ${categoryName}, aim to: ${improvementText}`
-      };
-    });
-  };
-  
-  const suggestions = getImprovementSuggestions();
 
   return (
-    <motion.div 
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
-      className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
-    >
-      <motion.div 
-        initial={{ y: 50, opacity: 0 }}
-        animate={{ y: 0, opacity: 1 }}
-        transition={{ delay: 0.1 }}
-        className="bg-white rounded-lg shadow-xl w-full max-w-3xl overflow-hidden"
-      >
+    <motion.div className="fixed inset-0 bg-black bg-opacity-50 flex items-start justify-center z-50 overflow-y-auto py-8">
+      <motion.div className="bg-white rounded-lg shadow-xl w-full max-w-3xl mx-4 overflow-hidden">
         <div className="flex justify-between items-center p-4 border-b">
           <h2 className="text-xl font-bold text-slate-800">Essay Analysis</h2>
-          <button 
-            onClick={onClose}
-            className="p-2 rounded-full hover:bg-slate-100 transition-colors"
-          >
+          <button onClick={onClose} className="p-2 rounded-full hover:bg-slate-100">
             <FaTimes className="w-5 h-5 text-slate-600" />
           </button>
         </div>
-        
-        <div className="p-6">
-          {/* Overall score */}
-          <div className="mb-8 flex items-center justify-center">
-            <div className="relative w-40 h-40 flex items-center justify-center">
-              <svg className="absolute inset-0" viewBox="0 0 100 100">
-                <circle 
-                  className="text-slate-200" 
-                  strokeWidth="10"
-                  stroke="currentColor"
-                  fill="transparent"
-                  r="40" 
-                  cx="50" 
-                  cy="50" 
-                />
-                <motion.circle 
-                  initial={{ strokeDashoffset: `${2 * Math.PI * 40}` }}
-                  animate={{ strokeDashoffset: `${2 * Math.PI * 40 * (1 - overallScore / 5)}` }}
-                  transition={{ duration: 1, ease: "easeOut" }}
-                  className="text-blue-600" 
-                  strokeWidth="10"
-                  stroke="currentColor"
-                  fill="transparent"
-                  r="40" 
-                  cx="50" 
-                  cy="50" 
-                  strokeDasharray={`${2 * Math.PI * 40}`}
-                  strokeLinecap="round"
-                  transform="rotate(-90 50 50)"
-                />
-              </svg>
-              <div className="z-10 text-center">
-                <motion.div 
-                  initial={{ opacity: 0, scale: 0.5 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  transition={{ delay: 0.5, duration: 0.3 }}
-                  className="text-4xl font-bold text-slate-800"
-                >
-                  {formattedOverallScore}
-                </motion.div>
-                <motion.div 
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  transition={{ delay: 0.8 }}
-                  className="text-lg font-bold text-blue-600"
-                >
-                  {getLetterGrade(overallScore)}
-                </motion.div>
-                <motion.div
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  transition={{ delay: 1 }}
-                  className="text-sm text-slate-500 mt-1"
-                >
-                  Average score
-                </motion.div>
+        <div className="p-6 max-h-[80vh] overflow-y-auto">
+          {isLoading ? (
+            <div className="flex flex-col items-center justify-center min-h-[400px]">
+              <FaSpinner className="w-12 h-12 text-blue-500 animate-spin mb-4" />
+              <p className="text-gray-600 text-lg">Analyzing your essay...</p>
+            </div>
+          ) : error ? (
+            <div className="bg-red-50 border border-red-200 rounded-md p-4 text-red-700">{error}</div>
+          ) : (
+            <>
+              <div className="mb-6 text-right">
+                <span className="text-sm text-gray-500">Word Count: {wordCount}</span>
               </div>
-            </div>
-          </div>
-          
-          {/* Rubric scores */}
-          <div className="mb-8">
-            <h3 className="text-lg font-semibold mb-4">Writing Rubric Scores</h3>
-            <div className="space-y-4">
-              {Object.entries(rubricScores).map(([category, score], index) => {
-                const categoryKey = category as keyof typeof rubricScores;
-                const { name, icon } = categoryConfig[categoryKey];
-                const scoreKey = score as keyof typeof rubricLevels;
-                
-                return (
-                  <div 
-                    key={category} 
-                    className="relative"
-                    onMouseEnter={() => setActiveTooltip(category)}
-                    onMouseLeave={() => setActiveTooltip(null)}
-                  >
-                    <div className="flex justify-between items-center mb-1">
-                      <div className="flex items-center">
-                        <div className={`p-1.5 rounded-full bg-slate-200 text-slate-700 mr-2`}>
-                          {icon}
-                        </div>
-                        <div className="font-medium">{name}</div>
-                      </div>
-                      <div className="flex items-center">
-                        <span className="mr-2 font-bold" style={{ color: rubricLevels[scoreKey].color }}>
-                          {score}
-                        </span>
-                        <span className="text-sm text-slate-500">
-                          ({rubricLevels[scoreKey].name})
-                        </span>
-                      </div>
+              <div className="mb-8">
+                {/* Overall Score Card */}
+                <div className="bg-gradient-to-br from-blue-50 to-white rounded-xl p-8 shadow-lg mb-8 border border-blue-100">
+                  <div className="flex items-center justify-between mb-6">
+                    <div>
+                      <h3 className="text-2xl font-bold text-gray-800">Overall Score</h3>
+                      <p className="text-sm text-gray-500 mt-1">Based on {analysis.length} scoring categories</p>
                     </div>
-                    
-                    {/* Rubric level bar */}
-                    <div className="h-2.5 bg-slate-200 rounded-full flex overflow-hidden">
-                      {[1, 2, 3, 4, 5].map((level) => (
-                        <motion.div
-                          key={level}
-                          initial={{ scaleX: 0, originX: 0 }}
-                          animate={{ scaleX: level <= score ? 1 : 0 }}
-                          transition={{ 
-                            delay: 0.2 + (index * 0.1) + ((level - 1) * 0.05),
-                            duration: 0.3
-                          }}
-                          className="h-full w-1/5 origin-left"
-                          style={{
-                            backgroundColor: rubricLevels[level as keyof typeof rubricLevels].color,
-                            marginLeft: level > 1 ? '2px' : 0
-                          }}
-                        />
-                      ))}
+                    <div className="text-right">
+                      <div className="text-5xl font-bold text-blue-600">
+                        {(analysis.reduce((sum, item) => sum + item.score, 0) / analysis.length).toFixed(1)}
+                        <span className="text-xl text-gray-400 ml-1">/5</span>
+                      </div>
+                      <p className="text-sm text-gray-500 mt-1">
+                        {wordCount} words analyzed
+                      </p>
                     </div>
-                    
-                    {/* Tooltip */}
-                    <AnimatePresence>
-                      {activeTooltip === category && (
-                        <motion.div
-                          initial={{ opacity: 0, y: 10 }}
-                          animate={{ opacity: 1, y: 0 }}
-                          exit={{ opacity: 0, y: 5 }}
-                          transition={{ duration: 0.2 }}
-                          className="absolute z-10 bg-slate-800 text-white text-sm p-3 rounded-md shadow-lg mt-1 w-full max-w-md"
-                        >
-                          <div className="font-semibold mb-1">
-                            {rubricLevels[scoreKey].name} ({score}/5)
-                          </div>
-                          <div>
-                            {
-                              rubricDescriptions[categoryKey][
-                                score as keyof typeof rubricDescriptions[typeof categoryKey]
-                              ]
-                            }
-                          </div>
-                        </motion.div>
-                      )}
-                    </AnimatePresence>
                   </div>
-                );
-              })}
-            </div>
-          </div>
-          
-          {/* Feedback section */}
-          <div className="mt-8 p-4 bg-slate-50 rounded-md">
-            <h3 className="font-bold mb-2">Improvement Suggestions</h3>
-            <ul className="list-disc pl-5 space-y-2 text-sm">
-              {suggestions.map((item, index) => (
-                <li key={index}>{item.suggestion}</li>
-              ))}
-            </ul>
-          </div>
+                  
+                  <div className="relative">
+                    <ScoreBar 
+                      score={analysis.reduce((sum, item) => sum + item.score, 0) / analysis.length}
+                      maxScore={5}
+                    />
+                    <div className="flex justify-between text-xs text-gray-500 mt-2">
+                      <span>Poor</span>
+                      <span>Fair</span>
+                      <span>Good</span>
+                      <span>Excellent</span>
+                    </div>
+                  </div>
+
+                </div>
+
+                {/* Individual Score Cards */}
+                <div className="space-y-4">
+                  {analysis.map((rubric, index) => (
+                    <Tooltip.Provider delayDuration={0} key={index}>
+                      <Tooltip.Root>
+                        <div className={`bg-white rounded-lg p-4 shadow-sm border-l-4 ${categoryColors[rubric.category]}`}>
+                          <div className="flex justify-between items-center mb-2">
+                            <h3 className="font-semibold text-gray-800">{rubric.category}</h3>
+                            <span className={`text-lg font-bold ${getScoreColor(rubric.score)}`}>
+                              {rubric.score}/5
+                            </span>
+                          </div>
+                          <ScoreBar score={rubric.score} maxScore={5} />
+                          
+                          {/* Explanation Summary */}
+                          <p className="text-sm text-gray-600 mt-2 line-clamp-2">
+                            {rubric.explanation[0]}
+                          </p>
+                          
+                          <Tooltip.Trigger asChild>
+                            <button 
+                              className="mt-2 text-sm text-blue-600 hover:text-blue-700 hover:underline focus:outline-none"
+                            >
+                              View Full Details
+                            </button>
+                          </Tooltip.Trigger>
+                          
+                          <Tooltip.Portal>
+                            <Tooltip.Content
+                              className="bg-white p-4 rounded-lg shadow-lg border border-gray-200 max-w-sm z-50"
+                              sideOffset={5}
+                              collisionPadding={20}
+                              sticky="always"
+                              side="right"
+                            >
+                              <div className="space-y-2">
+                                <h4 className="font-semibold text-gray-800 mb-2">Detailed Feedback</h4>
+                                {rubric.explanation.map((exp, i) => (
+                                  <p key={i} className="text-sm text-gray-600 mb-2">{exp}</p>
+                                ))}
+                                {rubric.comments.length > 0 && (
+                                  <div className="mt-3 pt-3 border-t border-gray-200">
+                                    <p className="font-medium text-sm text-gray-700 mb-2">Specific Comments:</p>
+                                    <ul className="list-disc pl-4">
+                                      {rubric.comments.map((comment, i) => (
+                                        <li key={i} className="text-sm text-gray-600 mb-1">
+                                          {comment.comment}
+                                        </li>
+                                      ))}
+                                    </ul>
+                                  </div>
+                                )}
+                              </div>
+                              <Tooltip.Arrow className="fill-white" />
+                            </Tooltip.Content>
+                          </Tooltip.Portal>
+                        </div>
+                      </Tooltip.Root>
+                    </Tooltip.Provider>
+                  ))}
+                </div>
+              </div>
+            </>
+          )}
         </div>
+        {!isLoading && !error && (
+          <div className="p-4 border-t bg-gray-50 flex justify-between items-center">
+            <div className="text-sm text-gray-500">
+              Last analyzed: {new Date().toLocaleTimeString()}
+            </div>
+            <button
+              onClick={handleRegenerate}
+              disabled={isRegenerating}
+              className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 
+                       transition-colors disabled:opacity-50 disabled:cursor-not-allowed
+                       flex items-center gap-2"
+            >
+              {isRegenerating ? (
+                <>
+                  <FaSpinner className="w-4 h-4 animate-spin" />
+                  Regenerating...
+                </>
+              ) : (
+                'Regenerate Analysis'
+              )}
+            </button>
+          </div>
+        )}
       </motion.div>
     </motion.div>
   );

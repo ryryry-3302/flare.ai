@@ -12,11 +12,14 @@ import {
   FaHeading,
   FaLink,
   FaUpload,
-  FaChartBar
+  FaChartBar,
+  FaUnderline // Add this import
 } from 'react-icons/fa';
 import * as Tooltip from '@radix-ui/react-tooltip';
 import QRCodeUploadModal from './components/QRUploadModal';
 import MetricsPanel from './components/MetricsPanel';
+import * as Popover from '@radix-ui/react-popover';
+import { ColorSelector } from './components/ColorSelector';
 
 type MenuBarProps = {
   editor: Editor | null;
@@ -26,13 +29,23 @@ const MenuBar: React.FC<MenuBarProps> = ({ editor }) => {
   const [showQRCodeModal, setShowQRCodeModal] = useState(false);
   const [showMetricsPanel, setShowMetricsPanel] = useState(false);
   const [metricsRegenerateKey, setMetricsRegenerateKey] = useState(0);
+  const [lastAnalysis, setLastAnalysis] = useState<RubricScore[]>([]);
+  const [highlightColor, setHighlightColor] = useState('#fef08a'); // Default yellow
 
   if (!editor) {
     return null;
   }
 
   const handleShowMetrics = () => {
-    // Increment regeneration key to trigger new scores
+    if (!editor) return;
+    
+    const content = editor.getText();
+    
+    if (!content || content.trim().length < 5) {
+      alert("Please add some content before analyzing.");
+      return;
+    }
+
     setMetricsRegenerateKey(prev => prev + 1);
     setShowMetricsPanel(true);
   };
@@ -40,52 +53,29 @@ const MenuBar: React.FC<MenuBarProps> = ({ editor }) => {
   const handleFileUploaded = (file: File, extractedText?: string) => {
     if (extractedText) {
       try {
-        // Check if the text contains page markers
         const hasPageMarkers = extractedText.includes('--- Page');
-        
-        // Split by page markers first if they exist
         let sections = hasPageMarkers 
           ? extractedText.split(/---\s*Page \d+\s*---/).filter(Boolean)
           : [extractedText];
-        
-        // Create document content
+
         let documentContent: any[] = [];
-        
-        // Process each section (page)
+
         sections.forEach((section, sectionIndex) => {
-          // If not the first section, add an extra line break for page separation
           if (hasPageMarkers && sectionIndex > 0) {
-            // Add a horizontal rule as page separator (optional)
-            documentContent.push({
-              type: 'horizontalRule'
-            });
+            documentContent.push({ type: 'horizontalRule' });
           }
           
-          // Process paragraphs in this section
-          const paragraphs = section.split('\n\n')
-            .map(p => p.trim())
-            .filter(Boolean);
+          const paragraphs = section.split('\n\n').map(p => p.trim()).filter(Boolean);
           
-          // Add each paragraph
           paragraphs.forEach(paragraph => {
-            documentContent.push({
-              type: 'paragraph',
-              content: [{ type: 'text', text: paragraph }]
-            });
+            documentContent.push({ type: 'paragraph', content: [{ type: 'text', text: paragraph }] });
           });
         });
-        
-        // Create the full document structure
-        const content = {
-          type: 'doc',
-          content: documentContent
-        };
-        
-        // Insert the document into the editor
+
+        const content = { type: 'doc', content: documentContent };
         editor.chain().focus().setContent(content).run();
       } catch (error) {
         console.error('Error formatting text:', error);
-        // Fallback to simple text insertion
         editor.chain().focus().insertContent(extractedText).run();
       }
     } 
@@ -105,92 +95,252 @@ const MenuBar: React.FC<MenuBarProps> = ({ editor }) => {
                   className={`p-2 rounded hover:bg-slate-100 transition-colors ${
                     editor.isActive('bold') ? 'bg-slate-200 text-slate-900' : 'text-slate-700'
                   }`}
-                  title="Bold"
                 >
                   <FaBold className="w-4 h-4" />
                 </button>
               </Tooltip.Trigger>
               <Tooltip.Portal>
-                <Tooltip.Content className="bg-slate-800 text-white px-2 py-1 rounded text-xs">
-                  Bold
+                <Tooltip.Content 
+                  className="bg-slate-800 text-white px-2 py-1 rounded text-xs flex flex-col items-center"
+                  sideOffset={5}
+                >
+                  <div>Bold</div>
+                  <div className="text-slate-400">Ctrl + B</div>
                   <Tooltip.Arrow className="fill-slate-800" />
                 </Tooltip.Content>
               </Tooltip.Portal>
             </Tooltip.Root>
           </Tooltip.Provider>
 
-          <button
-            type="button"
-            onClick={() => editor.chain().focus().toggleItalic().run()}
-            className={`p-2 rounded hover:bg-slate-100 transition-colors ${
-              editor.isActive('italic') ? 'bg-slate-200 text-slate-900' : 'text-slate-700'
-            }`}
-            title="Italic"
-          >
-            <FaItalic className="w-4 h-4" />
-          </button>
+          <Tooltip.Provider>
+            <Tooltip.Root>
+              <Tooltip.Trigger asChild>
+                <button
+                  type="button"
+                  onClick={() => editor.chain().focus().toggleItalic().run()}
+                  className={`p-2 rounded hover:bg-slate-100 transition-colors ${
+                    editor.isActive('italic') ? 'bg-slate-200 text-slate-900' : 'text-slate-700'
+                  }`}
+                >
+                  <FaItalic className="w-4 h-4" />
+                </button>
+              </Tooltip.Trigger>
+              <Tooltip.Portal>
+                <Tooltip.Content 
+                  className="bg-slate-800 text-white px-2 py-1 rounded text-xs flex flex-col items-center"
+                  sideOffset={5}
+                >
+                  <div>Italic</div>
+                  <div className="text-slate-400">Ctrl + I</div>
+                  <Tooltip.Arrow className="fill-slate-800" />
+                </Tooltip.Content>
+              </Tooltip.Portal>
+            </Tooltip.Root>
+          </Tooltip.Provider>
 
-          <button
-            type="button"
-            onClick={() => editor.chain().focus().toggleHighlight().run()}
-            className={`p-2 rounded hover:bg-slate-100 transition-colors ${
-              editor.isActive('highlight') ? 'bg-slate-200 text-slate-900' : 'text-slate-700'
-            }`}
-            title="Highlight"
-          >
-            <FaHighlighter className="w-4 h-4" />
-          </button>
+          <Tooltip.Provider>
+            <Tooltip.Root>
+              <Tooltip.Trigger asChild>
+                <button
+                  type="button"
+                  onClick={() => editor.chain().focus().toggleUnderline().run()}
+                  className={`p-2 rounded hover:bg-slate-100 transition-colors ${
+                    editor.isActive('underline') ? 'bg-slate-200 text-slate-900' : 'text-slate-700'
+                  }`}
+                >
+                  <FaUnderline className="w-4 h-4" />
+                </button>
+              </Tooltip.Trigger>
+              <Tooltip.Portal>
+                <Tooltip.Content 
+                  className="bg-slate-800 text-white px-2 py-1 rounded text-xs flex flex-col items-center"
+                  sideOffset={5}
+                >
+                  <div>Underline</div>
+                  <div className="text-slate-400">Ctrl + U</div>
+                  <Tooltip.Arrow className="fill-slate-800" />
+                </Tooltip.Content>
+              </Tooltip.Portal>
+            </Tooltip.Root>
+          </Tooltip.Provider>
+
+          {/* Highlight and Color Selection */}
+          <div className="flex items-center gap-0.5">
+            <Tooltip.Provider>
+              <Tooltip.Root>
+                <Tooltip.Trigger asChild>
+                  <button
+                    type="button"
+                    onClick={() => editor.chain().focus().toggleHighlight({ color: highlightColor }).run()}
+                    className={`p-2 rounded-l hover:bg-slate-100 transition-colors ${
+                      editor.isActive('highlight') ? 'bg-slate-200 text-slate-900' : 'text-slate-700'
+                    }`}
+                  >
+                    <div className="relative">
+                      <FaHighlighter className="w-4 h-4" />
+                      <div 
+                        className="w-2 h-2 rounded-full absolute -bottom-0.5 -right-0.5 border border-white"
+                        style={{ backgroundColor: highlightColor }}
+                      />
+                    </div>
+                  </button>
+                </Tooltip.Trigger>
+                <Tooltip.Portal>
+                  <Tooltip.Content 
+                    className="bg-slate-800 text-white px-2 py-1 rounded text-xs flex flex-col items-center"
+                    sideOffset={5}
+                  >
+                    <div>Highlight</div>
+                    <div className="text-slate-400">Ctrl + H</div>
+                    <Tooltip.Arrow className="fill-slate-800" />
+                  </Tooltip.Content>
+                </Tooltip.Portal>
+              </Tooltip.Root>
+            </Tooltip.Provider>
+
+            <Popover.Root>
+              <Popover.Trigger asChild>
+                <button
+                  type="button"
+                  className="p-2 rounded-r border-l border-slate-200 hover:bg-slate-100 transition-colors text-slate-700"
+                >
+                  <div className="w-4 h-4 rounded-full border border-current"
+                      style={{ backgroundColor: highlightColor }} />
+                </button>
+              </Popover.Trigger>
+              <Popover.Portal>
+                <Popover.Content
+                  className="z-50"
+                  sideOffset={5}
+                  align="end"
+                >
+                  <ColorSelector
+                    onColorSelect={(color) => {
+                      setHighlightColor(color);
+                      if (editor.isActive('highlight')) {
+                        editor.chain().focus().toggleHighlight({ color }).run();
+                      }
+                    }}
+                  />
+                  <Popover.Arrow className="fill-white" />
+                </Popover.Content>
+              </Popover.Portal>
+            </Popover.Root>
+          </div>
         </div>
 
         {/* Structure elements */}
         <div className="flex items-center gap-1 mr-2 border-r border-slate-200 pr-2">
-          <button
-            type="button"
-            onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()}
-            className={`p-2 rounded hover:bg-slate-100 transition-colors ${
-              editor.isActive('heading', { level: 2 }) ? 'bg-slate-200 text-slate-900' : 'text-slate-700'
-            }`}
-            title="Heading"
-          >
-            <FaHeading className="w-4 h-4" />
-          </button>
+          <Tooltip.Provider>
+            <Tooltip.Root>
+              <Tooltip.Trigger asChild>
+                <button
+                  type="button"
+                  onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()}
+                  className={`p-2 rounded hover:bg-slate-100 transition-colors ${
+                    editor.isActive('heading', { level: 2 }) ? 'bg-slate-200 text-slate-900' : 'text-slate-700'
+                  }`}
+                >
+                  <FaHeading className="w-4 h-4" />
+                </button>
+              </Tooltip.Trigger>
+              <Tooltip.Portal>
+                <Tooltip.Content 
+                  className="bg-slate-800 text-white px-2 py-1 rounded text-xs flex flex-col items-center"
+                  sideOffset={5}
+                >
+                  <div>Heading</div>
+                  <div className="text-slate-400">Ctrl + Alt + H</div>
+                  <Tooltip.Arrow className="fill-slate-800" />
+                </Tooltip.Content>
+              </Tooltip.Portal>
+            </Tooltip.Root>
+          </Tooltip.Provider>
 
-          <button
-            type="button"
-            onClick={() => editor.chain().focus().toggleBulletList().run()}
-            className={`p-2 rounded hover:bg-slate-100 transition-colors ${
-              editor.isActive('bulletList') ? 'bg-slate-200 text-slate-900' : 'text-slate-700'
-            }`}
-            title="Bullet List"
-          >
-            <FaListUl className="w-4 h-4" />
-          </button>
+          <Tooltip.Provider>
+            <Tooltip.Root>
+              <Tooltip.Trigger asChild>
+                <button
+                  type="button"
+                  onClick={() => editor.chain().focus().toggleBulletList().run()}
+                  className={`p-2 rounded hover:bg-slate-100 transition-colors ${
+                    editor.isActive('bulletList') ? 'bg-slate-200 text-slate-900' : 'text-slate-700'
+                  }`}
+                  title="Bullet List"
+                >
+                  <FaListUl className="w-4 h-4" />
+                </button>
+              </Tooltip.Trigger>
+              <Tooltip.Portal>
+                <Tooltip.Content 
+                  className="bg-slate-800 text-white px-2 py-1 rounded text-xs flex flex-col items-center"
+                  sideOffset={5}
+                >
+                  <div>Bullet List</div>
+                  <div className="text-slate-400">Ctrl + Alt + B</div>
+                  <Tooltip.Arrow className="fill-slate-800" />
+                </Tooltip.Content>
+              </Tooltip.Portal>
+            </Tooltip.Root>
+          </Tooltip.Provider>
 
-          <button
-            type="button"
-            onClick={() => editor.chain().focus().toggleOrderedList().run()}
-            className={`p-2 rounded hover:bg-slate-100 transition-colors ${
-              editor.isActive('orderedList') ? 'bg-slate-200 text-slate-900' : 'text-slate-700'
-            }`}
-            title="Numbered List"
-          >
-            <FaListOl className="w-4 h-4" />
-          </button>
+          <Tooltip.Provider>
+            <Tooltip.Root>
+              <Tooltip.Trigger asChild>
+                <button
+                  type="button"
+                  onClick={() => editor.chain().focus().toggleOrderedList().run()}
+                  className={`p-2 rounded hover:bg-slate-100 transition-colors ${
+                    editor.isActive('orderedList') ? 'bg-slate-200 text-slate-900' : 'text-slate-700'
+                  }`}
+                  title="Numbered List"
+                >
+                  <FaListOl className="w-4 h-4" />
+                </button>
+              </Tooltip.Trigger>
+              <Tooltip.Portal>
+                <Tooltip.Content 
+                  className="bg-slate-800 text-white px-2 py-1 rounded text-xs flex flex-col items-center"
+                  sideOffset={5}
+                >
+                  <div>Numbered List</div>
+                  <div className="text-slate-400">Ctrl + Alt + N</div>
+                  <Tooltip.Arrow className="fill-slate-800" />
+                </Tooltip.Content>
+              </Tooltip.Portal>
+            </Tooltip.Root>
+          </Tooltip.Provider>
 
-          <button
-            type="button"
-            onClick={() => editor.chain().focus().toggleBlockquote().run()}
-            className={`p-2 rounded hover:bg-slate-100 transition-colors ${
-              editor.isActive('blockquote') ? 'bg-slate-200 text-slate-900' : 'text-slate-700'
-            }`}
-            title="Quote"
-          >
-            <FaQuoteRight className="w-4 h-4" />
-          </button>
+          <Tooltip.Provider>
+            <Tooltip.Root>
+              <Tooltip.Trigger asChild>
+                <button
+                  type="button"
+                  onClick={() => editor.chain().focus().toggleBlockquote().run()}
+                  className={`p-2 rounded hover:bg-slate-100 transition-colors ${
+                    editor.isActive('blockquote') ? 'bg-slate-200 text-slate-900' : 'text-slate-700'
+                  }`}
+                  title="Quote"
+                >
+                  <FaQuoteRight className="w-4 h-4" />
+                </button>
+              </Tooltip.Trigger>
+              <Tooltip.Portal>
+                <Tooltip.Content 
+                  className="bg-slate-800 text-white px-2 py-1 rounded text-xs flex flex-col items-center"
+                  sideOffset={5}
+                >
+                  <div>Quote</div>
+                  <div className="text-slate-400">Ctrl + Alt + Q</div>
+                  <Tooltip.Arrow className="fill-slate-800" />
+                </Tooltip.Content>
+              </Tooltip.Portal>
+            </Tooltip.Root>
+          </Tooltip.Provider>
         </div>
 
+        {/* Upload and Metrics */}
         <div className="flex items-center gap-1">
-          {/* Upload Button */}
           <Tooltip.Provider>
             <Tooltip.Root>
               <Tooltip.Trigger asChild>
@@ -210,70 +360,44 @@ const MenuBar: React.FC<MenuBarProps> = ({ editor }) => {
               </Tooltip.Portal>
             </Tooltip.Root>
           </Tooltip.Provider>
-          
-          {/* Metrics Button */}
+
           <Tooltip.Provider>
             <Tooltip.Root>
               <Tooltip.Trigger asChild>
                 <button
                   type="button"
                   onClick={handleShowMetrics}
-                  className="p-2 rounded hover:bg-slate-100 transition-colors text-slate-700"
+                  className="flex items-center gap-1 px-3 py-1 bg-blue-600 text-white text-sm font-medium rounded hover:bg-blue-700 transition-colors"
                 >
                   <FaChartBar className="w-4 h-4" />
+                  Analysis
                 </button>
               </Tooltip.Trigger>
               <Tooltip.Portal>
                 <Tooltip.Content className="bg-slate-800 text-white px-2 py-1 rounded text-xs">
-                  View Metrics
+                  Analyze Essay
                   <Tooltip.Arrow className="fill-slate-800" />
                 </Tooltip.Content>
               </Tooltip.Portal>
             </Tooltip.Root>
           </Tooltip.Provider>
         </div>
-
-        {/* History */}
-        <div className="flex items-center gap-1">
-          <button
-            type="button"
-            onClick={() => editor.chain().focus().undo().run()}
-            disabled={!editor.can().undo()}
-            className={`p-2 rounded hover:bg-slate-100 transition-colors ${
-              !editor.can().undo() ? 'opacity-50 cursor-not-allowed' : 'text-slate-700'
-            }`}
-            title="Undo"
-          >
-            <FaUndo className="w-4 h-4" />
-          </button>
-
-          <button
-            type="button"
-            onClick={() => editor.chain().focus().redo().run()}
-            disabled={!editor.can().redo()}
-            className={`p-2 rounded hover:bg-slate-100 transition-colors ${
-              !editor.can().redo() ? 'opacity-50 cursor-not-allowed' : 'text-slate-700'
-            }`}
-            title="Redo"
-          >
-            <FaRedo className="w-4 h-4" />
-          </button>
-        </div>
       </div>
-      
-      {/* QR Code Upload Modal */}
+
       {showQRCodeModal && (
         <QRCodeUploadModal 
           onClose={() => setShowQRCodeModal(false)}
           onFileUploaded={handleFileUploaded}
         />
       )}
-      
-      {/* Metrics Panel */}
+
       {showMetricsPanel && (
         <MetricsPanel 
           onClose={() => setShowMetricsPanel(false)}
           regenerateKey={metricsRegenerateKey}
+          editor={editor}
+          initialAnalysis={lastAnalysis} // Pass the last analysis
+          onAnalysisComplete={(analysis) => setLastAnalysis(analysis)} // Store new analysis
         />
       )}
     </>
