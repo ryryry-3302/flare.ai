@@ -7,10 +7,13 @@ import {
   FaQuoteRight, 
   FaChartLine,
   FaStopwatch,    // NEW icon for longest sentence
-  FaFont          // NEW icon for longest word
+  FaFont,         // NEW icon for longest word
+  FaSpinner, 
+  FaLightbulb 
 } from 'react-icons/fa';
 import { motion } from 'framer-motion';
 import { Editor } from '@tiptap/react';
+import axios from 'axios';
 
 /** Count approximate syllables in a single word (helper) */
 function countSyllablesInWord(rawWord: string): number {
@@ -44,6 +47,14 @@ interface EditorStatsProps {
   editor: Editor | null;
 }
 
+interface WritingHero {
+  name: string;
+  description: string;
+  strengths: string[];
+  tips: string[];
+  icon: string;
+}
+
 const EditorStats: React.FC<EditorStatsProps> = ({ wordCount, editor }) => {
   const [sentenceCount, setSentenceCount] = useState(0);
   const [paragraphCount, setParagraphCount] = useState(0);
@@ -53,6 +64,10 @@ const EditorStats: React.FC<EditorStatsProps> = ({ wordCount, editor }) => {
   // NEW states
   const [longestSentence, setLongestSentence] = useState(0);
   const [longestWord, setLongestWord] = useState('');
+
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [writingHero, setWritingHero] = useState<WritingHero | null>(null);
 
   // Common words to filter out from frequency
   const commonWords = ['the', 'and', 'that', 'have', 'for', 'not', 'you', 'with', 'this', 'but'];
@@ -131,7 +146,44 @@ const EditorStats: React.FC<EditorStatsProps> = ({ wordCount, editor }) => {
     });
     setLongestWord(lw);
 
+    if (editor && wordCount > 50) {
+      analyzeWritingStyle();
+    }
+
   }, [editor, wordCount]);
+
+  const analyzeWritingStyle = async () => {
+    if (!editor) return;
+    
+    try {
+      setIsLoading(true);
+      setError(null);
+      
+      const essayText = editor.getText();
+      
+      if (essayText.length < 50) {
+        setError("Your essay is too short for style analysis. Write more to get personalized insights.");
+        setIsLoading(false);
+        return;
+      }
+      
+      const response = await axios.post('http://localhost:5000/api/writing-style', {
+        essay: essayText
+      });
+      
+      if (response.data.success && response.data.hero) {
+        setWritingHero(response.data.hero);
+      } else {
+        setError("Couldn't determine your writing style. Please try again.");
+      }
+      
+    } catch (error: any) {
+      console.error('Error analyzing writing style:', error);
+      setError(error.response?.data?.error || "Failed to analyze writing style");
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   /** Flesch–Kincaid Grade Level => a reading level category */
   const getReadingLevel = () => {
@@ -313,6 +365,67 @@ const EditorStats: React.FC<EditorStatsProps> = ({ wordCount, editor }) => {
           ))}
         </ul>
       </motion.div>
+
+      {isLoading ? (
+        <div className="flex flex-col items-center justify-center flex-grow">
+          <FaSpinner className="text-blue-500 text-3xl mb-3 animate-spin" />
+          <p className="text-slate-600">Analyzing your writing style...</p>
+        </div>
+      ) : error ? (
+        <div className="flex flex-col items-center justify-center flex-grow">
+          <div className="bg-red-50 text-red-600 p-4 rounded-lg max-w-md">
+            <p>{error}</p>
+            {wordCount < 50 && (
+              <p className="mt-2">Keep writing! You need at least 50 words for analysis.</p>
+            )}
+          </div>
+        </div>
+      ) : writingHero ? (
+        <div className="flex-grow">
+          <div className="bg-blue-50 rounded-lg p-5 mb-5">
+            <div className="flex items-center mb-4">
+              <span className="text-4xl mr-3">{writingHero.icon}</span>
+              <h3 className="text-xl font-bold text-blue-700">{writingHero.name}</h3>
+            </div>
+            <p className="text-slate-700 mb-4">{writingHero.description}</p>
+            
+            <h4 className="font-bold text-slate-700 mb-2">Your Writing Strengths:</h4>
+            <ul className="list-disc pl-5 mb-4">
+              {writingHero.strengths.map((strength, index) => (
+                <li key={index} className="text-slate-600 mb-1">{strength}</li>
+              ))}
+            </ul>
+            
+            <h4 className="font-bold text-slate-700 mb-2">Tips to Improve:</h4>
+            <ul className="list-disc pl-5">
+              {writingHero.tips.map((tip, index) => (
+                <li key={index} className="text-slate-600 mb-1">{tip}</li>
+              ))}
+            </ul>
+          </div>
+          
+          <button 
+            onClick={analyzeWritingStyle}
+            className="flex items-center justify-center gap-2 w-full py-2 bg-white border border-blue-300 rounded-md text-blue-600 hover:bg-blue-50 transition-colors"
+          >
+            <FaLightbulb className="text-yellow-500" />
+            Refresh Analysis
+          </button>
+        </div>
+      ) : (
+        <div className="flex flex-col items-center justify-center flex-grow">
+          <button 
+            onClick={analyzeWritingStyle}
+            className="flex items-center justify-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
+          >
+            <FaLightbulb className="text-yellow-300" />
+            Analyze My Writing Style
+          </button>
+          <p className="text-slate-500 mt-3 text-center max-w-xs">
+            Discover your writing superhero identity and get personalized tips!
+          </p>
+        </div>
+      )}
     </motion.div>
   );
 };
