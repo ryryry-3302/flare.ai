@@ -4,6 +4,7 @@ import os
 import time
 import json
 import uuid
+import base64
 from datetime import datetime
 from queue import Queue
 import threading
@@ -13,6 +14,7 @@ import PIL.Image
 from multimodal_extract_text import extract_text, clean_extracted_text  # Use the unified extraction function
 from scorer import grade_essay
 from grammar import corrections_from_essay
+from analyse_history import analyze_student_progress, generate_assignment_questions, generate_assignment_pdf
 import logging
 from supabase_functions import get_supabase_client
 
@@ -505,6 +507,59 @@ def grammar_check():
         
     except Exception as e:
         logger.exception("Error processing grammar check")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/student-progress', methods=['POST'])
+def student_progress():
+    """Analyze student essays to track progress and generate a personalized assignment PDF"""
+    logger.info("Received student progress analysis request")
+    
+    try:
+        data = request.json
+        if not data or 'essays' not in data:
+            logger.error("No essays provided in request")
+            return jsonify({'error': 'No essays provided'}), 400
+            
+        essays = data['essays']
+        due_date = data.get('due_date')  # Optional due date for the assignment
+        
+        if not isinstance(essays, list) or len(essays) == 0:
+            logger.error("Essays must be provided as a non-empty list")
+            return jsonify({'error': 'Essays must be provided as a non-empty list'}), 400
+        
+        logger.info(f"Analyzing progress for {len(essays)} essays")
+        
+        # Analyze student progress
+        progress = analyze_student_progress(essays)
+        logger.info("Progress analysis completed")
+        
+        # Extract common mistakes and improvements separately
+        common_mistakes = progress.get("common_mistakes", [])
+        improvements = progress.get("improvements", [])
+        
+        # Generate assignment questions based on common mistakes
+        assignment = generate_assignment_questions(common_mistakes)
+        logger.info("Assignment questions generated")
+        
+        # Generate PDF
+        pdf_blob = generate_assignment_pdf(assignment, due_date)
+        logger.info("Assignment PDF generated")
+        
+        # Encode PDF as base64 for JSON response
+        pdf_base64 = base64.b64encode(pdf_blob).decode('utf-8')
+        
+        response_data = {
+            'success': True,
+            'common_mistakes': common_mistakes,
+            'improvements': improvements,
+            'pdf': pdf_base64
+        }
+        
+        logger.info("Sending successful response with progress data and PDF")
+        return jsonify(response_data)
+        
+    except Exception as e:
+        logger.exception("Error processing student progress analysis")
         return jsonify({'error': str(e)}), 500
 
 if __name__ == '__main__':
