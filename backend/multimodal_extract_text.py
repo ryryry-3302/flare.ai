@@ -106,8 +106,7 @@ def extract_text(input_file, notify_callback=None):
     return results
 
 if __name__ == "__main__":
-    input_file = "media/sample.pdf"  # Replace with your input file path
+    input_file = "media/Anchor - 6.pdf"  # Replace with your input file path
     results = extract_text(input_file)
     print("Extracted Text:")
-    for text in results:
-        print(text)
+    print(" ".join(results))

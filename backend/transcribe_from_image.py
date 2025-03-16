@@ -17,7 +17,7 @@ def extract_text_from_image(image_path):
     
     try:
         response = client.models.generate_content(
-            model="gemini-2.0-flash", contents=[prompt, image]
+            model="gemini-2.0-flash-thinking-exp-01-21", contents=[prompt, image]
         )
         return response.text
     except Exception as e:
