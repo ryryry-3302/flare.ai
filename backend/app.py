@@ -282,11 +282,27 @@ def analyze_essay():
 
 @app.route('/api/list-essays', methods=['GET'])
 def list_essays():
-    supabase = get_supabase_client()
-    # Replace "essays" with your actual table name
-    response = supabase.table("Essays").select("*").execute()
-    return jsonify(response.data or [])
-
+    """List all essays from Supabase"""
+    try:
+        logger.info("Fetching essays from Supabase")
+        supabase = get_supabase_client()
+        
+        # Get all essays, including the essay_body content
+        response = supabase.table("Essays").select("*").execute()
+        
+        if not response.data:
+            logger.info("No essays found in database")
+            return jsonify([])
+            
+        # Format the response to include any necessary fields
+        essays = response.data
+        logger.info(f"Found {len(essays)} essays")
+        
+        return jsonify(essays)
+        
+    except Exception as e:
+        logger.exception("Error fetching essays from Supabase")
+        return jsonify({'error': str(e)}), 500
 # Add this new route for writing style superhero recommendations
 
 @app.route('/api/writing-style', methods=['POST'])

@@ -12,7 +12,7 @@ import OrderedList from '@tiptap/extension-ordered-list';
 import Blockquote from '@tiptap/extension-blockquote';
 import ListItem from '@tiptap/extension-list-item';
 
-import { FaChartLine, FaFont, FaClock, FaComment, FaChartBar } from 'react-icons/fa';
+import { FaChartLine, FaFont, FaClock, FaComment, FaChartBar, FaFolderOpen, FaFile } from 'react-icons/fa';
 import MetricsPanel from './components/MetricsPanel';
 import EditorStats from './components/EditorStats';
 
@@ -24,6 +24,8 @@ import { Color } from '@tiptap/extension-color';
 import { generateReport, WritingHero, StudentProgress } from './utils/reportGenerator'; // or your path
 import axios from 'axios';
 import { v4 as uuidv4 } from 'uuid';
+import { Dialog } from '@radix-ui/react-dialog';
+import * as DialogPrimitive from '@radix-ui/react-dialog';
 
 /** If your metrics analysis uses a "RubricScore" type, define it below or import from your own code. */
 interface RubricScore {
@@ -58,6 +60,9 @@ const Editor: React.FC = () => {
   const [showMetrics, setShowMetrics] = useState(false);
   const [showInsights, setShowInsights] = useState(false);
   const [showComments, setShowComments] = useState(false);
+  const [showFileBrowser, setShowFileBrowser] = useState(false);
+  const [essays, setEssays] = useState<any[]>([]);
+  const [isLoadingEssays, setIsLoadingEssays] = useState(false);
 
   const [wordCount, setWordCount] = useState(0);
   const [comments, setComments] = useState<CommentData[]>(() => {
@@ -256,6 +261,36 @@ const Editor: React.FC = () => {
     });
   };
 
+  // Add this function to fetch essays from Supabase
+  const fetchEssays = async () => {
+    setIsLoadingEssays(true);
+    try {
+      const response = await axios.get('http://localhost:5000/api/list-essays');
+      console.log('Retrieved essays:', response.data);
+      setEssays(response.data);
+    } catch (error) {
+      console.error('Error fetching essays:', error);
+      alert('Failed to load essays from database');
+    } finally {
+      setIsLoadingEssays(false);
+    }
+  };
+
+  // Add this function to load an essay into the editor
+  const loadEssay = (essayContent: string) => {
+    if (!editor) return;
+    
+    // First clear all comments
+    setComments([]);
+    setActiveCommentId(null);
+    
+    // Then reset the editor content
+    editor.commands.setContent(essayContent);
+    
+    // Close the file browser
+    setShowFileBrowser(false);
+  };
+
   // Add this function to fetch student progress
   const fetchStudentProgress = async () => {
     try {
@@ -352,6 +387,18 @@ const Editor: React.FC = () => {
         <h2 className="text-slate-700 font-medium">Essay Editor</h2>
 
         <div className="flex items-center gap-2">
+          {/* File Browser Button */}
+          <button
+            onClick={() => {
+              setShowFileBrowser(true);
+              fetchEssays();
+            }}
+            className="flex items-center gap-1 px-3 py-1 text-sm font-medium rounded bg-indigo-600 text-white hover:bg-indigo-700 transition-colors"
+          >
+            <FaFolderOpen className="w-4 h-4" />
+            Files
+          </button>
+
           {/* Trigger Comments */}
           <button
             onClick={() => {
@@ -509,6 +556,72 @@ const Editor: React.FC = () => {
           comments={comments}
           wordCount={wordCount}
         />
+      )}
+
+      {/* File Browser Dialog */}
+      {showFileBrowser && (
+        <Dialog open={showFileBrowser} onOpenChange={setShowFileBrowser}>
+          <DialogPrimitive.Portal>
+            <DialogPrimitive.Overlay className="fixed inset-0 bg-black/30 z-40" />
+            <DialogPrimitive.Content className="fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-white p-6 rounded-lg shadow-lg w-[500px] max-w-[90vw] max-h-[80vh] overflow-y-auto z-50">
+              <DialogPrimitive.Title className="text-xl font-semibold mb-4">
+                Load Essay
+              </DialogPrimitive.Title>
+              
+              <div className="mb-4">
+                <p className="text-sm text-slate-600 mb-2">
+                  Select an essay to load from your saved files:
+                </p>
+                
+                {isLoadingEssays ? (
+                  <div className="flex items-center justify-center h-32">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+                  </div>
+                ) : essays.length === 0 ? (
+                  <div className="text-center py-6 text-slate-500">
+                    No essays found in the database
+                  </div>
+                ) : (
+                  <div className="border rounded divide-y max-h-[300px] overflow-y-auto">
+                    {essays.map((essay) => (
+                      <button
+                        key={essay.id}
+                        onClick={() => loadEssay(essay.essay_body)}
+                        className="w-full px-4 py-3 text-left hover:bg-slate-100 flex items-center gap-3 transition-colors"
+                      >
+                        <FaFile className="text-blue-500" />
+                        <div>
+                          <div className="font-medium">
+                            {essay.title || `Essay #${essay.id}`}
+                          </div>
+                          <div className="text-xs text-slate-500">
+                            {new Date(essay.created_at).toLocaleString()}
+                          </div>
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+              
+              <div className="flex justify-end gap-2 mt-4">
+                <button
+                  onClick={() => fetchEssays()}
+                  disabled={isLoadingEssays}
+                  className="px-3 py-1.5 text-sm font-medium rounded border border-slate-300 hover:bg-slate-100 transition-colors"
+                >
+                  Refresh
+                </button>
+                <button
+                  onClick={() => setShowFileBrowser(false)}
+                  className="px-3 py-1.5 text-sm font-medium rounded bg-blue-600 text-white hover:bg-blue-700 transition-colors"
+                >
+                  Close
+                </button>
+              </div>
+            </DialogPrimitive.Content>
+          </DialogPrimitive.Portal>
+        </Dialog>
       )}
     </div>
   );
