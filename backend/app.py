@@ -509,20 +509,21 @@ def grammar_check():
         logger.exception("Error processing grammar check")
         return jsonify({'error': str(e)}), 500
 
-@app.route('/api/student-progress', methods=['POST'])
+@app.route('/api/student-progress', methods=['GET'])
 def student_progress():
     """Analyze student essays to track progress and generate a personalized assignment PDF"""
     logger.info("Received student progress analysis request")
     
     try:
-        data = request.json
-        if not data or 'essays' not in data:
-            logger.error("No essays provided in request")
-            return jsonify({'error': 'No essays provided'}), 400
-            
-        essays = data['essays']
-        due_date = data.get('due_date')  # Optional due date for the assignment
-        
+        supabase = get_supabase_client()
+        # Replace "essays" with your actual table name
+        supa_response = supabase.table("Essays").select("*").execute()
+        data = supa_response.data
+
+        essays = []
+        for item in data:
+            essays.append(item['essay_body'])
+
         if not isinstance(essays, list) or len(essays) == 0:
             logger.error("Essays must be provided as a non-empty list")
             return jsonify({'error': 'Essays must be provided as a non-empty list'}), 400
@@ -542,7 +543,7 @@ def student_progress():
         logger.info("Assignment questions generated")
         
         # Generate PDF
-        pdf_blob = generate_assignment_pdf(assignment, due_date)
+        pdf_blob = generate_assignment_pdf(assignment)
         logger.info("Assignment PDF generated")
         
         # Encode PDF as base64 for JSON response
@@ -564,4 +565,18 @@ def student_progress():
 
 if __name__ == '__main__':
     logger.info("Starting Flask server")
+
+    with app.app_context():  # Ensure proper application context
+        response = student_progress()  # Call the function
+       
+        # Extract the JSON response properly
+        if isinstance(response, tuple):  # Handle (response, status_code) case
+            response, _ = response
+        
+        if isinstance(response, Response):  # Flask Response object case
+            response_data = response.get_json()  # Get JSON data
+            print(json.dumps(response_data, indent=2))  # Pretty print for readability
+        else:
+            print("Unexpected response format:", response)
+
     app.run(debug=True, host='0.0.0.0', port=5000, threaded=True)
