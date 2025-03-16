@@ -10,13 +10,15 @@ import {
   FaListOl,
   FaQuoteRight,
   FaHeading,
-  FaLink,
   FaUpload,
-  FaUnderline // Add this import
+  FaUnderline, 
+  FaStrikethrough,
+  FaPalette,
+  FaEraser // <-- Add this new icon
 } from 'react-icons/fa';
 import * as Tooltip from '@radix-ui/react-tooltip';
-import QRCodeUploadModal from './components/QRUploadModal';
 import * as Popover from '@radix-ui/react-popover';
+import QRCodeUploadModal from './components/QRUploadModal';
 import { ColorSelector } from './components/ColorSelector';
 
 type MenuBarProps = {
@@ -25,7 +27,36 @@ type MenuBarProps = {
 
 const MenuBar: React.FC<MenuBarProps> = ({ editor }) => {
   const [showQRCodeModal, setShowQRCodeModal] = useState(false);
-  const [highlightColor, setHighlightColor] = useState('#fef08a'); // Default yellow
+
+  // For highlight color
+  const [highlightColor, setHighlightColor] = useState('#fef08a'); // default highlight is yellow
+
+  // For text color
+  const [selectedTextColor, setSelectedTextColor] = useState('#333');
+
+  // Some palette to pick from
+  const colors = [
+
+    
+    // Main colors
+    '#DB4437', // Red
+    '#FF5722', // Deep Orange
+    '#FF9800', // Orange
+    '#FFCA28', // Amber
+    '#FDD835', // Yellow
+    
+    // Greens and blues
+    '#66BB6A', // Green
+    '#26A69A', // Teal
+    '#29B6F6', // Light Blue
+    '#2196F3', // Blue
+    '#5C6BC0', // Indigo
+    
+    // Purples and pinks
+    '#7E57C2', // Deep Purple
+    '#AB47BC', // Purple
+    '#EC407A', // Pink
+  ];
 
   if (!editor) {
     return null;
@@ -49,7 +80,10 @@ const MenuBar: React.FC<MenuBarProps> = ({ editor }) => {
           const paragraphs = section.split('\n\n').map(p => p.trim()).filter(Boolean);
           
           paragraphs.forEach(paragraph => {
-            documentContent.push({ type: 'paragraph', content: [{ type: 'text', text: paragraph }] });
+            documentContent.push({
+              type: 'paragraph',
+              content: [{ type: 'text', text: paragraph }]
+            });
           });
         });
 
@@ -59,14 +93,15 @@ const MenuBar: React.FC<MenuBarProps> = ({ editor }) => {
         console.error('Error formatting text:', error);
         editor.chain().focus().insertContent(extractedText).run();
       }
-    } 
+    }
   };
 
   return (
     <>
-      <div className="mb-4 p-2 bg-white border border-slate-200 rounded-md shadow-sm flex flex-wrap items-center gap-1">
+      <div className="mb-4 p-2 bg-white border border-slate-200 rounded-md shadow-sm flex flex-wrap items-center gap-1 relative">
         {/* Text formatting */}
         <div className="flex items-center gap-1 mr-2 border-r border-slate-200 pr-2">
+          {/* Bold */}
           <Tooltip.Provider>
             <Tooltip.Root>
               <Tooltip.Trigger asChild>
@@ -93,6 +128,7 @@ const MenuBar: React.FC<MenuBarProps> = ({ editor }) => {
             </Tooltip.Root>
           </Tooltip.Provider>
 
+          {/* Italic */}
           <Tooltip.Provider>
             <Tooltip.Root>
               <Tooltip.Trigger asChild>
@@ -119,6 +155,7 @@ const MenuBar: React.FC<MenuBarProps> = ({ editor }) => {
             </Tooltip.Root>
           </Tooltip.Provider>
 
+          {/* Underline */}
           <Tooltip.Provider>
             <Tooltip.Root>
               <Tooltip.Trigger asChild>
@@ -145,7 +182,89 @@ const MenuBar: React.FC<MenuBarProps> = ({ editor }) => {
             </Tooltip.Root>
           </Tooltip.Provider>
 
-          {/* Highlight and Color Selection */}
+          {/* Strike-through */}
+          <Tooltip.Provider>
+            <Tooltip.Root>
+              <Tooltip.Trigger asChild>
+                <button
+                  type="button"
+                  onClick={() => editor.chain().focus().toggleStrike().run()}
+                  className={`p-2 rounded hover:bg-slate-100 transition-colors ${
+                    editor.isActive('strike') ? 'bg-slate-200 text-slate-900' : 'text-slate-700'
+                  }`}
+                >
+                  <FaStrikethrough className="w-4 h-4" />
+                </button>
+              </Tooltip.Trigger>
+              <Tooltip.Portal>
+                <Tooltip.Content 
+                  className="bg-slate-800 text-white px-2 py-1 rounded text-xs flex flex-col items-center"
+                  sideOffset={5}
+                >
+                  <div>Strike-through</div>
+                  <Tooltip.Arrow className="fill-slate-800" />
+                </Tooltip.Content>
+              </Tooltip.Portal>
+            </Tooltip.Root>
+          </Tooltip.Provider>
+
+          {/* Text color button - with prettier palette */}
+          <Popover.Root>
+            <Popover.Trigger asChild>
+              <button
+                type="button"
+                className="p-2 rounded hover:bg-slate-100 transition-colors text-slate-700"
+              >
+                <div className="relative">
+                  <FaPalette className="w-4 h-4" />
+                  <div 
+                    className="w-2 h-2 rounded-full absolute -bottom-0.5 -right-0.5 border border-white"
+                    style={{ backgroundColor: selectedTextColor }}
+                  />
+                </div>
+              </button>
+            </Popover.Trigger>
+            <Popover.Portal>
+              <Popover.Content
+                className="z-50 bg-white border border-slate-200 rounded shadow-md p-3 w-48"
+                sideOffset={5}
+              >
+                <div className="grid grid-cols-5 gap-2">
+
+                  
+                  {/* Color grid */}
+                  {colors.slice(1).map(color => (
+                    <button
+                      key={color}
+                      onClick={() => {
+                        setSelectedTextColor(color);
+                        editor.chain().focus().setColor(color).run();
+                      }}
+                      className="w-7 h-7 rounded-full border border-slate-300 hover:scale-110 transition-transform"
+                      style={{ backgroundColor: color }}
+                      title={color}
+                    />
+                  ))}
+                </div>
+                
+                {/* Reset button */}
+                <div className="mt-2 pt-2 border-t border-slate-200">
+                  <button
+                    onClick={() => {
+                      editor.chain().focus().unsetColor().run();
+                      setSelectedTextColor('#000000');
+                    }}
+                    className="text-xs text-slate-600 hover:text-blue-600 flex items-center justify-center w-full"
+                  >
+                    Reset to default
+                  </button>
+                </div>
+                <Popover.Arrow className="fill-white" />
+              </Popover.Content>
+            </Popover.Portal>
+          </Popover.Root>
+
+          {/* Highlight + highlight-color selection */}
           <div className="flex items-center gap-0.5">
             <Tooltip.Provider>
               <Tooltip.Root>
@@ -185,8 +304,10 @@ const MenuBar: React.FC<MenuBarProps> = ({ editor }) => {
                   type="button"
                   className="p-2 rounded-r border-l border-slate-200 hover:bg-slate-100 transition-colors text-slate-700"
                 >
-                  <div className="w-4 h-4 rounded-full border border-current"
-                      style={{ backgroundColor: highlightColor }} />
+                  <div 
+                    className="w-4 h-4 rounded-full border border-current"
+                    style={{ backgroundColor: highlightColor }} 
+                  />
                 </button>
               </Popover.Trigger>
               <Popover.Portal>
@@ -212,6 +333,7 @@ const MenuBar: React.FC<MenuBarProps> = ({ editor }) => {
 
         {/* Structure elements */}
         <div className="flex items-center gap-1 mr-2 border-r border-slate-200 pr-2">
+          {/* Heading */}
           <Tooltip.Provider>
             <Tooltip.Root>
               <Tooltip.Trigger asChild>
@@ -238,6 +360,7 @@ const MenuBar: React.FC<MenuBarProps> = ({ editor }) => {
             </Tooltip.Root>
           </Tooltip.Provider>
 
+          {/* Bullet List */}
           <Tooltip.Provider>
             <Tooltip.Root>
               <Tooltip.Trigger asChild>
@@ -247,7 +370,6 @@ const MenuBar: React.FC<MenuBarProps> = ({ editor }) => {
                   className={`p-2 rounded hover:bg-slate-100 transition-colors ${
                     editor.isActive('bulletList') ? 'bg-slate-200 text-slate-900' : 'text-slate-700'
                   }`}
-                  title="Bullet List"
                 >
                   <FaListUl className="w-4 h-4" />
                 </button>
@@ -265,6 +387,7 @@ const MenuBar: React.FC<MenuBarProps> = ({ editor }) => {
             </Tooltip.Root>
           </Tooltip.Provider>
 
+          {/* Numbered List */}
           <Tooltip.Provider>
             <Tooltip.Root>
               <Tooltip.Trigger asChild>
@@ -274,7 +397,6 @@ const MenuBar: React.FC<MenuBarProps> = ({ editor }) => {
                   className={`p-2 rounded hover:bg-slate-100 transition-colors ${
                     editor.isActive('orderedList') ? 'bg-slate-200 text-slate-900' : 'text-slate-700'
                   }`}
-                  title="Numbered List"
                 >
                   <FaListOl className="w-4 h-4" />
                 </button>
@@ -292,6 +414,7 @@ const MenuBar: React.FC<MenuBarProps> = ({ editor }) => {
             </Tooltip.Root>
           </Tooltip.Provider>
 
+          {/* Quote */}
           <Tooltip.Provider>
             <Tooltip.Root>
               <Tooltip.Trigger asChild>
@@ -301,7 +424,6 @@ const MenuBar: React.FC<MenuBarProps> = ({ editor }) => {
                   className={`p-2 rounded hover:bg-slate-100 transition-colors ${
                     editor.isActive('blockquote') ? 'bg-slate-200 text-slate-900' : 'text-slate-700'
                   }`}
-                  title="Quote"
                 >
                   <FaQuoteRight className="w-4 h-4" />
                 </button>
@@ -335,13 +457,84 @@ const MenuBar: React.FC<MenuBarProps> = ({ editor }) => {
               </Tooltip.Trigger>
               <Tooltip.Portal>
                 <Tooltip.Content className="bg-slate-800 text-white px-2 py-1 rounded text-xs">
-                  Upload Photo
+                  Upload Photo/PDF
                   <Tooltip.Arrow className="fill-slate-800" />
                 </Tooltip.Content>
               </Tooltip.Portal>
             </Tooltip.Root>
           </Tooltip.Provider>
         </div>
+
+        {/* Undo and Redo Buttons */}
+        <Tooltip.Provider>
+          <Tooltip.Root>
+            <Tooltip.Trigger asChild>
+              <button
+                type="button"
+                onClick={() => editor.chain().focus().undo().run()}
+                className="p-2 rounded hover:bg-slate-100 transition-colors"
+              >
+                <FaUndo className="w-4 h-4" />
+              </button>
+            </Tooltip.Trigger>
+            <Tooltip.Portal>
+              <Tooltip.Content 
+                className="bg-slate-800 text-white px-2 py-1 rounded text-xs flex flex-col items-center"
+                sideOffset={5}
+              >
+                <div>Undo</div>
+                <Tooltip.Arrow className="fill-slate-800" />
+              </Tooltip.Content>
+            </Tooltip.Portal>
+          </Tooltip.Root>
+        </Tooltip.Provider>
+
+        <Tooltip.Provider>
+          <Tooltip.Root>
+            <Tooltip.Trigger asChild>
+              <button
+                type="button"
+                onClick={() => editor.chain().focus().redo().run()}
+                className="p-2 rounded hover:bg-slate-100 transition-colors"
+              >
+                <FaRedo className="w-4 h-4" />
+              </button>
+            </Tooltip.Trigger>
+            <Tooltip.Portal>
+              <Tooltip.Content 
+                className="bg-slate-800 text-white px-2 py-1 rounded text-xs flex flex-col items-center"
+                sideOffset={5}
+              >
+                <div>Redo</div>
+                <Tooltip.Arrow className="fill-slate-800" />
+              </Tooltip.Content>
+            </Tooltip.Portal>
+          </Tooltip.Root>
+        </Tooltip.Provider>
+
+        {/* Clear Formatting Button */}
+        <Tooltip.Provider>
+          <Tooltip.Root>
+            <Tooltip.Trigger asChild>
+              <button
+                type="button"
+                onClick={() => editor.chain().focus().clearNodes().unsetAllMarks().run()}
+                className="p-2 rounded hover:bg-slate-100 transition-colors"
+              >
+                <FaEraser className="w-4 h-4" />
+              </button>
+            </Tooltip.Trigger>
+            <Tooltip.Portal>
+              <Tooltip.Content 
+                className="bg-slate-800 text-white px-2 py-1 rounded text-xs flex flex-col items-center"
+                sideOffset={5}
+              >
+                <div>Clear Formatting</div>
+                <Tooltip.Arrow className="fill-slate-800" />
+              </Tooltip.Content>
+            </Tooltip.Portal>
+          </Tooltip.Root>
+        </Tooltip.Provider>
       </div>
 
       {showQRCodeModal && (

@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import Highlight from '@tiptap/extension-highlight';
+import Underline from '@tiptap/extension-underline';
+import Strike from '@tiptap/extension-strike';
 import MenuBar from './MenuBar';
 import BulletList from '@tiptap/extension-bullet-list';
 import OrderedList from '@tiptap/extension-ordered-list';
@@ -12,8 +14,8 @@ import MetricsPanel from './components/MetricsPanel';
 import EditorStats from './components/EditorStats';
 import CommentsSidebar, { CommentData } from './components/CommentsSidebar';
 import { Comment, CommentMark } from './extensions/CommentExtension';
-import Underline from '@tiptap/extension-underline';
 import { Color } from '@tiptap/extension-color';
+import TextStyle from '@tiptap/extension-text-style';
 import { generateReport } from './utils/reportGenerator';
 import axios from 'axios';
 
@@ -72,12 +74,14 @@ const Editor = () => {
         multicolor: true,
       }),
       Underline,
+      Strike,
       BulletList,
       OrderedList,
       Blockquote,
       ListItem,
       CommentMark,
       Comment,
+      TextStyle,
       Color,
     ],
     content: localStorage.getItem(STORAGE_KEYS.EDITOR_CONTENT) || DEFAULT_CONTENT,
