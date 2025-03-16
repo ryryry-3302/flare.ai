@@ -1,5 +1,10 @@
 import { CommentData } from '../components/CommentsSidebar';
-import logoSvg from '../assets/logo+tagline.svg';
+import authentic_avenger from '../assets/authentic_avenger.svg';
+import captain_clarity from '../assets/captain_clarity.svg';
+import imagination_igniter from '../assets/imagination_igniter.svg';
+import reason_ranger from '../assets/reason_ranger.svg';
+import vocab_vanguard from '../assets/vocab_vanguard.svg';
+import logoSvg from '../assets/logo.svg';
 
 // Define the analysis data structure
 export interface RubricScore {
@@ -596,6 +601,54 @@ export const generateReportHTML = (
     }
   `;
 
+  const getHeroSvg = (heroName: string): string => {
+    // Create a function to convert SVG to a data URL
+    const svgToDataUrl = (svgContent: string): string => {
+      const encoded = encodeURIComponent(svgContent);
+      return `data:image/svg+xml;charset=utf-8,${encoded}`;
+    };
+    
+    // Use a switch statement to return the appropriate SVG
+    let svgImage: any;
+    
+    switch (heroName) {
+      case 'Authentic Avenger':
+        svgImage = authentic_avenger;
+        break;
+      case 'Captain Clarity':
+        svgImage = captain_clarity;
+        break;
+      case 'Imagination Igniter': 
+        svgImage = imagination_igniter;
+        break;
+      case 'Reason Ranger':
+        svgImage = reason_ranger;
+        break;
+      case 'Vocab Vanguard':
+        svgImage = vocab_vanguard;
+        break;
+      default:
+        // Fallback to text if no image is found
+        return writingHero?.icon || '👨‍🏫';
+    }
+    
+    // Check if svgImage is already a data URL or embedded SVG content
+    if (typeof svgImage === 'string') {
+      // If it's a string, it might be a URL or the SVG content itself
+      if (svgImage.startsWith('<svg') || svgImage.startsWith('data:image/svg+xml')) {
+        return `<img src="${svgImage.startsWith('data:') ? svgImage : svgToDataUrl(svgImage)}" 
+                    alt="${heroName}" style="max-width: 100%; max-height: 100%;">`;
+      } else {
+        // It's likely a URL
+        return `<img src="${svgImage}" alt="${heroName}" style="max-width: 100%; max-height: 100%;">`;
+      }
+    } else {
+      // For webpack/module bundled SVGs that are imported as objects
+      // This is likely your case if you're using create-react-app or similar
+      return `<img src="${svgImage}" alt="${heroName}" style="max-width: 100%; max-height: 100%;">`;
+    }
+  };
+
   // Build the writing style hero section - larger size, to be placed at bottom
   const writingHeroSection = writingHero 
     ? `
@@ -604,7 +657,7 @@ export const generateReportHTML = (
         
         <div class="hero-container" style="display: flex; flex-direction: column; align-items: center; gap: 1.5rem; margin-top: 1rem;">
           <div class="hero-icon" style="font-size: 5rem; line-height: 1; background-color: white; border-radius: 50%; width: 400px; height: 400px; display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
-            ${writingHero.icon}
+            ${getHeroSvg(writingHero.name)}
           </div>
           
           <div class="hero-content" style="width: 100%;">
@@ -632,6 +685,7 @@ export const generateReportHTML = (
     `
     : '';
 
+ 
   // Build the student progress section
   const studentProgressSection = studentProgress 
     ? `
