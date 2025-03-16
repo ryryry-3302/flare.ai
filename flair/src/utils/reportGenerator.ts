@@ -1,4 +1,10 @@
 import { CommentData } from '../components/CommentsSidebar';
+import authentic_avenger from '../assets/authentic_avenger.svg';
+import captain_clarity from '../assets/captain_clarity.svg';
+import imagination_igniter from '../assets/imagination_igniter.svg';
+import reason_ranger from '../assets/reason_ranger.svg';
+import vocab_vanguard from '../assets/vocab_vanguard.svg';
+import logoSvg from '../assets/logo.svg';
 
 // Define the analysis data structure
 export interface RubricScore {
@@ -595,33 +601,83 @@ export const generateReportHTML = (
     }
   `;
 
-  // Build the writing style hero section
+  const getHeroSvg = (heroName: string): string => {
+    // Create a function to convert SVG to a data URL
+    const svgToDataUrl = (svgContent: string): string => {
+      const encoded = encodeURIComponent(svgContent);
+      return `data:image/svg+xml;charset=utf-8,${encoded}`;
+    };
+    
+    // Use a switch statement to return the appropriate SVG
+    let svgImage: any;
+    
+    switch (heroName) {
+      case 'Authentic Avenger':
+        svgImage = authentic_avenger;
+        break;
+      case 'Captain Clarity':
+        svgImage = captain_clarity;
+        break;
+      case 'Imagination Igniter': 
+        svgImage = imagination_igniter;
+        break;
+      case 'Reason Ranger':
+        svgImage = reason_ranger;
+        break;
+      case 'Vocab Vanguard':
+        svgImage = vocab_vanguard;
+        break;
+      default:
+        // Fallback to text if no image is found
+        return writingHero?.icon || '👨‍🏫';
+    }
+    
+    // Check if svgImage is already a data URL or embedded SVG content
+    if (typeof svgImage === 'string') {
+      // If it's a string, it might be a URL or the SVG content itself
+      if (svgImage.startsWith('<svg') || svgImage.startsWith('data:image/svg+xml')) {
+        return `<img src="${svgImage.startsWith('data:') ? svgImage : svgToDataUrl(svgImage)}" 
+                    alt="${heroName}" style="max-width: 100%; max-height: 100%;">`;
+      } else {
+        // It's likely a URL
+        return `<img src="${svgImage}" alt="${heroName}" style="max-width: 100%; max-height: 100%;">`;
+      }
+    } else {
+      // For webpack/module bundled SVGs that are imported as objects
+      // This is likely your case if you're using create-react-app or similar
+      return `<img src="${svgImage}" alt="${heroName}" style="max-width: 100%; max-height: 100%;">`;
+    }
+  };
+
+  // Build the writing style hero section - larger size, to be placed at bottom
   const writingHeroSection = writingHero 
     ? `
       <div class="section writing-hero-section" style="margin-top: 3rem; background: linear-gradient(135deg, #f0f9ff, #e0f2fe); border-radius: 12px; padding: 1.5rem; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);">
         <h2>Your Writing Style Superhero</h2>
         
-        <div class="hero-container" style="display: flex; align-items: flex-start; gap: 1.5rem; margin-top: 1rem;">
-          <div class="hero-icon" style="font-size: 3.5rem; line-height: 1; background-color: white; border-radius: 50%; width: 70px; height: 70px; display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
-            ${writingHero.icon}
+        <div class="hero-container" style="display: flex; flex-direction: column; align-items: center; gap: 1.5rem; margin-top: 1rem;">
+          <div class="hero-icon" style="font-size: 5rem; line-height: 1; background-color: white; border-radius: 50%; width: 400px; height: 400px; display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+            ${getHeroSvg(writingHero.name)}
           </div>
           
-          <div class="hero-content" style="flex-grow: 1;">
-            <h3 style="color: #1e40af; margin-top: 0; margin-bottom: 0.75rem; font-size: 1.5rem;">${writingHero.name}</h3>
-            <p style="margin-top: 0; margin-bottom: 1.25rem;">${writingHero.description}</p>
+          <div class="hero-content" style="width: 100%;">
+            <h3 style="color: #1e40af; text-align: center; margin-top: 0; margin-bottom: 0.75rem; font-size: 1.75rem;">${writingHero.name}</h3>
+            <p style="text-align: center; margin-top: 0; margin-bottom: 1.25rem;">${writingHero.description}</p>
             
-            <div class="hero-strengths" style="background-color: white; padding: 1rem; border-radius: 8px; margin-bottom: 1rem;">
-              <h4 style="margin-top: 0; margin-bottom: 0.5rem; color: #1e40af;">Writing Strengths:</h4>
-              <ul style="margin: 0; padding-left: 1.5rem;">
-                ${writingHero.strengths.map(strength => `<li>${strength}</li>`).join('')}
-              </ul>
-            </div>
-            
-            <div class="hero-tips" style="background-color: white; padding: 1rem; border-radius: 8px;">
-              <h4 style="margin-top: 0; margin-bottom: 0.5rem; color: #1e40af;">Tips to Improve:</h4>
-              <ul style="margin: 0; padding-left: 1.5rem;">
-                ${writingHero.tips.map(tip => `<li>${tip}</li>`).join('')}
-              </ul>
+            <div style="display: flex; gap: 1.5rem; flex-wrap: wrap;">
+              <div class="hero-strengths" style="flex: 1; min-width: 250px; background-color: white; padding: 1rem; border-radius: 8px; margin-bottom: 1rem;">
+                <h4 style="margin-top: 0; margin-bottom: 0.5rem; color: #1e40af;">Writing Strengths:</h4>
+                <ul style="margin: 0; padding-left: 1.5rem;">
+                  ${writingHero.strengths.map(strength => `<li>${strength}</li>`).join('')}
+                </ul>
+              </div>
+              
+              <div class="hero-tips" style="flex: 1; min-width: 250px; background-color: white; padding: 1rem; border-radius: 8px;">
+                <h4 style="margin-top: 0; margin-bottom: 0.5rem; color: #1e40af;">Tips to Improve:</h4>
+                <ul style="margin: 0; padding-left: 1.5rem;">
+                  ${writingHero.tips.map(tip => `<li>${tip}</li>`).join('')}
+                </ul>
+              </div>
             </div>
           </div>
         </div>
@@ -629,6 +685,7 @@ export const generateReportHTML = (
     `
     : '';
 
+ 
   // Build the student progress section
   const studentProgressSection = studentProgress 
     ? `
@@ -709,7 +766,9 @@ export const generateReportHTML = (
     }
   `;
 
-  // The final HTML
+  // ...existing code...
+
+  // The final HTML - Moving the writingHeroSection to just after the header
   return `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -745,11 +804,11 @@ export const generateReportHTML = (
       <div class="emoji">${overallEmoji}</div>
     </div>
   </header>
-
-  <!-- Writing Style Hero Section -->
+  
+  <!-- Writing Style Hero Section - MOVED TO TOP -->
   ${writingHeroSection}
   
-  <!-- Student Progress Section (NEW) -->
+  <!-- Student Progress Section -->
   ${studentProgressSection}
 
   <!-- Analysis section -->
@@ -771,6 +830,9 @@ export const generateReportHTML = (
 
   <!-- Footer -->
   <footer style="margin-top:2rem; text-align:center; padding-top:1.5rem; border-top:1px solid #e5e7eb;">
+    <div style="text-align: center; margin-bottom: 1.5rem;">
+      <img src="${logoSvg}" alt="Flair" style="height: 80px; margin: 0 auto;">
+    </div>
     <p class="meta">Generated by Flair Essay Analysis Tool</p>
     <div style="margin-top:1rem; display:flex; align-items:center; justify-content:center;">
       <div style="background-color:#f0f9ff; border:1px solid #bae6fd; border-radius:8px; padding:0.75rem 1.5rem; display:inline-flex; align-items:center; gap:0.75rem;">
