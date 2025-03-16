@@ -7,29 +7,13 @@ from typing_extensions import TypedDict, List
 load_dotenv()
 
 class Comment(TypedDict):
-    """
-    Comment for a quoted text in the essay.
-    
-    Attributes:
-        start_index (int): The starting character index of the quoted text.
-        end_index (int): The ending character index of the quoted text.
-        comment (str): The content of the comment, It can be a suggestion, a correction, 
-            or a general feedback on the quoted content. It can also identify good vocabulary or grammar usage.
-    """
+    """Comment on a specific portion of text"""
+    comment: str
     start_index: int
     end_index: int
-    comment: str
 
 class RubricScore(TypedDict):
-    """
-    RubricScore represents the evaluation for a specific rubric category.
-    
-    Attributes:
-        category (str): The rubric category (Ideas, Organization, Voice, Word Choice, Sentence Fluency, Conventions).
-        score (int): Numeric score for the category (It must be within 1 to 5).
-        explanation (List[str]): List of explanation points for the score.
-        comments (List[Comment]): List of comments, each with a start index, an end index, and the comment itself.
-    """
+    """Score and feedback for a rubric category"""
     category: str
     score: int
     explanation: List[str]
@@ -45,6 +29,13 @@ def grade_essay(essay):
             The essay is provided in the 'essay' variable and the rubrics are provided in the 'rubrics' variable.
             Please read the essay and rubrics carefully and provide a detailed evaluation of the essay based on the rubrics.
             You should provide a score for each rubric and a detailed explanation for each score.
+            
+            Scores should be between 1 and 5, where:
+            5 = Excellent
+            4 = Good
+            3 = Satisfactory
+            2 = Needs Improvement
+            1 = Poor
             
             <essay>
             {essay}
@@ -63,7 +54,14 @@ def grade_essay(essay):
             response_schema=list[RubricScore]
         ),
     )
-    return response.text
+    
+    # Parse the response text as JSON
+    import json
+    try:
+        return json.loads(response.text)
+    except json.JSONDecodeError:
+        print("Failed to parse response as JSON:", response.text)
+        return response.text
 
 if __name__ == "__main__":
     from transcribe_from_image import extract_text_from_images_with_prefix

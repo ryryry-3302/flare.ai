@@ -11,6 +11,15 @@ import socket
 from flask_cors import CORS
 import PIL.Image
 from multimodal_extract_text import extract_text, clean_extracted_text  # Use the unified extraction function
+from scorer import grade_essay
+import logging
+
+# Configure logging
+logging.basicConfig(
+    level=logging.DEBUG,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
+logger = logging.getLogger(__name__)
 
 app = Flask(__name__)
 CORS(app)  # This enables CORS for all routes
@@ -216,5 +225,57 @@ def notify_clients(session_id, data):
         if session_id in sessions:
             sessions[session_id].announce(data)
 
+@app.route('/api/analyze-essay', methods=['POST'])
+def analyze_essay():
+    """Analyze essay text and return detailed scoring metrics"""
+    logger.info("Received essay analysis request")
+    
+    try:
+        data = request.json
+        if not data or 'essay' not in data:
+            logger.error("No essay text provided in request")
+            return jsonify({'error': 'No essay text provided'}), 400
+            
+        essay_text = data['essay']
+        logger.info(f"Essay length: {len(essay_text)} characters")
+        logger.debug(f"Essay preview: {essay_text[:100]}...")
+        
+        if not essay_text or len(essay_text.strip()) < 10:
+            logger.error("Essay text too short")
+            return jsonify({'error': 'Essay text is too short'}), 400
+            
+        # Call the grading function
+        logger.info("Calling grade_essay function")
+        analysis_result = grade_essay(essay_text)
+        
+        logger.info("Analysis completed")
+        logger.debug(f"Analysis result: {analysis_result}")
+        
+        # If the result is a string (like JSON string), parse it
+        if isinstance(analysis_result, str):
+            import json
+            try:
+                analysis_result = json.loads(analysis_result)
+                logger.debug("Successfully parsed string result as JSON")
+            except json.JSONDecodeError as e:
+                logger.error(f"Failed to parse analysis result as JSON: {e}")
+                # If not valid JSON, return as is
+                pass
+                
+        response_data = {
+            'success': True,
+            'analysis': analysis_result
+        }
+        
+        logger.info("Sending successful response")
+        logger.debug(f"Response data: {response_data}")
+        
+        return jsonify(response_data)
+        
+    except Exception as e:
+        logger.exception("Error processing essay analysis")
+        return jsonify({'error': str(e)}), 500
+
 if __name__ == '__main__':
+    logger.info("Starting Flask server")
     app.run(debug=True, host='0.0.0.0', port=5000, threaded=True)
