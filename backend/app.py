@@ -12,6 +12,7 @@ from flask_cors import CORS
 import PIL.Image
 from multimodal_extract_text import extract_text, clean_extracted_text  # Use the unified extraction function
 from scorer import grade_essay
+from grammar import corrections_from_essay
 import logging
 from supabase_functions import get_supabase_client
 
@@ -283,6 +284,46 @@ def list_essays():
     # Replace "essays" with your actual table name
     response = supabase.table("Essays").select("*").execute()
     return jsonify(response.data or [])
+
+@app.route('/api/grammar-check', methods=['POST'])
+def grammar_check():
+    """Check essay text for grammar, punctuation, and spelling errors"""
+    logger.info("Received grammar check request")
+    
+    try:
+        data = request.json
+        if not data or 'essay' not in data:
+            logger.error("No essay text provided in request")
+            return jsonify({'error': 'No essay text provided'}), 400
+            
+        essay_text = data['essay']
+        logger.info(f"Essay length: {len(essay_text)} characters")
+        logger.debug(f"Essay preview: {essay_text[:100]}...")
+        
+        if not essay_text or len(essay_text.strip()) < 10:
+            logger.error("Essay text too short")
+            return jsonify({'error': 'Essay text is too short'}), 400
+            
+        # Call the grammar correction function
+        logger.info("Calling corrections_from_essay function")
+        corrections = corrections_from_essay(essay_text)
+        
+        logger.info("Grammar check completed")
+        logger.debug(f"Corrections: {corrections}")
+        
+        response_data = {
+            'success': True,
+            'corrections': corrections
+        }
+        
+        logger.info("Sending successful response")
+        logger.debug(f"Response data: {response_data}")
+        
+        return jsonify(response_data)
+        
+    except Exception as e:
+        logger.exception("Error processing grammar check")
+        return jsonify({'error': str(e)}), 500
 
 if __name__ == '__main__':
     logger.info("Starting Flask server")
