@@ -71,3 +71,10 @@
   color: #2563eb;
   font-weight: bold;
 }
+
+/* Add this to your CSS */
+.grammar-error {
+  text-decoration: wavy underline red;
+  background-color: rgba(255, 0, 0, 0.05);
+  cursor: pointer;
+}
