@@ -243,73 +243,58 @@ const styles = `
     counter-reset: comment-counter;
   }
   
+  /* Header with flex to show overall grade side-by-side */
   header {
     background: linear-gradient(135deg, #e0f2fe, #dbeafe);
     border-radius: 16px;
-    padding: 2rem;
-    text-align: center;
+    padding: 1.5rem;
     margin-bottom: 2rem;
     box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
   }
-  
+
+  header .header-left {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+
+  header .header-right {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    background: white;
+    border-radius: 12px;
+    padding: 1rem 1.5rem;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+  }
+
   h1 {
     color: #1e40af;
-    font-size: 2.5rem;
-    margin-bottom: 0.5rem;
+    font-size: 2rem;
+    margin: 0;
   }
-  
+
   .meta {
     color: #6b7280;
     font-size: 0.95rem;
   }
-  
-  .scores {
-    display: flex;
-    flex-direction: column;
-    gap: 2rem;
-    margin: 2rem 0;
-  }
 
-  .overall-score {
-    background: linear-gradient(135deg, #e0f2fe, #dbeafe);
-    border-radius: 16px;
-    padding: 1.5rem;
-    text-align: center;
-    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-    max-width: 400px;
-    margin: 0 auto 2rem auto;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 1.5rem;
-  }
-
-  .score-main {
-    display: flex;
-    align-items: center;
-    gap: 1rem;
-  }
-
-  .overall-score .score-value {
-    font-size: 3rem;
+  /* Overall grade styling in the header-right container */
+  .header-right .score-value {
+    font-size: 2rem;
     color: #1e40af;
     line-height: 1;
   }
-
-  .overall-score .grade-label {
-    font-size: 1.25rem;
+  .header-right .grade-label {
+    font-size: 1rem;
     color: #6b7280;
-    margin-top: 0.25rem;
   }
-
-  .overall-score .emoji {
-    font-size: 2.5rem;
-    margin: 0;
-  }
-
-  .overall-progress {
-    flex-grow: 1;
-    max-width: 150px;
+  .header-right .emoji {
+    font-size: 1.75rem;
   }
 
   .analysis-section {
@@ -497,6 +482,9 @@ const styles = `
 </style>
 `;
 
+/**
+ * Renders the final HTML to put in the new window.
+ */
 export const generateReportHTML = (
   essayContent: string, 
   markedEssayContent: string, 
@@ -511,17 +499,11 @@ export const generateReportHTML = (
     day: 'numeric'
   });
 
-  // Calculate summary grades
+  // Calculate summary scores
   const grades = {
     overall: analysis.length > 0 
       ? parseFloat((analysis.reduce((sum, item) => sum + item.score, 0) / analysis.length).toFixed(1))
       : 0,
-    content: analysis.find(r => r.category.includes('Content'))?.score || 0,
-    organization: analysis.find(r => r.category.includes('Structure'))?.score || 0,
-    voice: analysis.find(r => r.category.includes('Stance'))?.score || 0,
-    wordChoice: analysis.find(r => r.category.includes('Word Choice'))?.score || 0,
-    fluency: analysis.find(r => r.category.includes('Sentence Fluency'))?.score || 0,
-    conventions: analysis.find(r => r.category.includes('Conventions'))?.score || 0
   };
 
   // Convert numeric score to letter grade
@@ -537,117 +519,94 @@ export const generateReportHTML = (
     return 'F';
   };
 
-  // Build your sections as before
-  const scoresSection = `
-  <div class="scores">
-    <div class="overall-score">
-      <div class="score-main">
-        <div>
-          <div class="score-value">
-            ${grades.overall}/5
-          </div>
-          <div class="grade-label">
-            ${getLetterGrade(grades.overall)}
-          </div>
-        </div>
-        <div class="emoji">
-          ${getEmoji(grades.overall)}
-        </div>
-      </div>
-      <div class="overall-progress">
-        <div class="progress-bar">
-          <div class="progress-fill" 
-               style="width: ${(grades.overall/5)*100}%; background-color: ${getProgressBarColor(grades.overall)}">
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
-`;
+  const letterGrade = getLetterGrade(grades.overall);
+  const overallEmoji = getEmoji(grades.overall);
 
+  // Build the analysis section
   const analysisSection = `
-  ${
-    analysis && analysis.length > 0 
-    ? `
-    <div class="analysis-section">
-      <h2>Detailed Analysis</h2>
-      ${analysis.map(rubric => `
-        <div class="category-container">
-          <div class="category-header">
-            <div class="category-title">
-              ${getEmoji(rubric.score)} ${rubric.category}
-            </div>
-            <div class="category-score">${rubric.score}/5</div>
-          </div>
-          <div class="progress-bar">
-            <div class="progress-fill" 
-                 style="width: ${(rubric.score/5)*100}%; background-color: ${getProgressBarColor(rubric.score)}">
-            </div>
-          </div>
-          <div class="rubric-explanation">
-            ${rubric.explanation.map(exp => `<p style="margin-top:0.5rem;">${exp}</p>`).join('')}
-          </div>
-          ${
-            rubric.comments && rubric.comments.length > 0 
-            ? `
-              <div class="rubric-comments" style="margin-top:1rem; padding-top:1rem; border-top: 1px solid #e5e7eb;">
-                <h4 style="margin-bottom:0.5rem; font-weight:bold; color:#1e40af;">Specific Comments</h4>
-                ${rubric.comments.map(comment => `
-                  <div style="background-color:#f9fafb; padding:0.75rem; border-radius:8px; margin-bottom:0.5rem;">
-                    ${comment.comment}
-                  </div>
-                `).join('')}
+    ${
+      analysis && analysis.length > 0 
+      ? `
+      <div class="analysis-section">
+        <h2>Detailed Analysis</h2>
+        ${analysis.map(rubric => `
+          <div class="category-container">
+            <div class="category-header">
+              <div class="category-title">
+                ${getEmoji(rubric.score)} ${rubric.category}
               </div>
-            `
-            : ''
-          }
-        </div>
-      `).join('')}
-    </div>
-    `
-    : ''
-  }
-`;
-
-  const commentsSection = `
-  ${
-    comments && comments.length > 0 
-    ? `
-    <div class="section comments-section">
-      <h2>Teacher's Comments</h2>
-      ${comments.map((comment, index) => {
-        const commentNumber = index + 1;
-        return `
-          <div id="comment-${commentNumber}" class="comment-box${comment.resolved ? ' resolved' : ''}">
+              <div class="category-score">${rubric.score}/5</div>
+            </div>
+            <div class="progress-bar">
+              <div class="progress-fill" 
+                   style="width: ${(rubric.score/5)*100}%; background-color: ${getProgressBarColor(rubric.score)}">
+              </div>
+            </div>
+            <div class="rubric-explanation">
+              ${rubric.explanation.map(exp => `<p style="margin-top:0.5rem;">${exp}</p>`).join('')}
+            </div>
             ${
-              comment.highlightedText
+              rubric.comments && rubric.comments.length > 0 
               ? `
-                <div style="font-style:italic; color:#4b5563; margin-bottom:10px; padding:8px 15px; background-color:#fffbeb; border-left:3px solid #fbbf24; border-radius:0 4px 4px 0;">
-                  "<span style="background-color:rgba(251, 191, 36, 0.2); padding:2px 0;">${comment.highlightedText}</span>"
+                <div class="rubric-comments" style="margin-top:1rem; padding-top:1rem; border-top: 1px solid #e5e7eb;">
+                  <h4 style="margin-bottom:0.5rem; font-weight:bold; color:#1e40af;">Specific Comments</h4>
+                  ${rubric.comments.map(comment => `
+                    <div style="background-color:#f9fafb; padding:0.75rem; border-radius:8px; margin-bottom:0.5rem;">
+                      ${comment.comment}
+                    </div>
+                  `).join('')}
                 </div>
               `
               : ''
             }
-            <div class="comment-author">Teacher noted:</div>
-            <div class="comment-content">${comment.text || comment.content}</div>
-            ${
-              comment.resolved 
-              ? '<div style="font-size: 0.8em; color: #047857; margin-top: 5px;">✓ This issue has been resolved</div>' 
-              : ''
-            }
-            <div style="margin-top: 10px; text-align:right;">
-              <a href="#top" style="font-size:0.8em; color:#2563eb; text-decoration:none;">↑ Back to essay</a>
-            </div>
           </div>
-        `;
-      }).join('')}
-    </div>
-    `
-    : '<p>No specific comments were added to this essay.</p>'
-  }
-`;
+        `).join('')}
+      </div>
+      `
+      : ''
+    }
+  `;
 
-  // Final HTML
+  // Build the teacher comments section
+  const commentsSection = `
+    ${
+      comments && comments.length > 0 
+      ? `
+      <div class="section comments-section">
+        <h2>Teacher's Comments</h2>
+        ${comments.map((comment, index) => {
+          const commentNumber = index + 1;
+          return `
+            <div id="comment-${commentNumber}" class="comment-box${comment.resolved ? ' resolved' : ''}">
+              ${
+                comment.highlightedText
+                ? `
+                  <div style="font-style:italic; color:#4b5563; margin-bottom:10px; padding:8px 15px; background-color:#fffbeb; border-left:3px solid #fbbf24; border-radius:0 4px 4px 0;">
+                    "<span style="background-color:rgba(251, 191, 36, 0.2); padding:2px 0;">${comment.highlightedText}</span>"
+                  </div>
+                `
+                : ''
+              }
+              <div class="comment-author">Teacher noted:</div>
+              <div class="comment-content">${comment.text || comment.content}</div>
+              ${
+                comment.resolved 
+                ? '<div style="font-size: 0.8em; color: #047857; margin-top: 5px;">✓ This issue has been resolved</div>' 
+                : ''
+              }
+              <div style="margin-top: 10px; text-align:right;">
+                <a href="#top" style="font-size:0.8em; color:#2563eb; text-decoration:none;">↑ Back to essay</a>
+              </div>
+            </div>
+          `;
+        }).join('')}
+      </div>
+      `
+      : '<p>No specific comments were added to this essay.</p>'
+    }
+  `;
+
+  // The final HTML
   return `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -666,18 +625,23 @@ export const generateReportHTML = (
   <button class="no-print-btn" onclick="window.print()">
     🖨️ Print Report
   </button>
-  <!-- Button to recalc bars if teacher manually edits scores -->
   <button class="no-print-btn" onclick="updateScoreBars()">
     🔄 Recalculate Score Bars
   </button>
 
   <header>
-    <h1>Essay Evaluation Report</h1>
-    <div class="meta">Generated on ${dateString} • ${wordCount} words</div>
+    <div class="header-left">
+      <h1>Essay Evaluation Report</h1>
+      <div class="meta">Generated on ${dateString} • ${wordCount} words</div>
+    </div>
+    <div class="header-right">
+      <div>
+        <div class="score-value">${grades.overall.toFixed(1)}/5</div>
+        <div class="grade-label">${letterGrade}</div>
+      </div>
+      <div class="emoji">${overallEmoji}</div>
+    </div>
   </header>
-
-  <!-- Scores section -->
-  ${scoresSection}
 
   <!-- Analysis section -->
   ${analysisSection}
