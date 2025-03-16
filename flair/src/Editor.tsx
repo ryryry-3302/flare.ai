@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useEditor, EditorContent } from '@tiptap/react';
+import logoSvg from './assets/logo.svg';
 
 import StarterKit from '@tiptap/starter-kit';
 import Highlight from '@tiptap/extension-highlight';
@@ -22,7 +23,9 @@ import {
   FaFile, 
   FaSpellCheck,
   FaFileAlt,
-  FaEye
+  FaEye,
+  FaRedo,
+  FaEraser
 } from 'react-icons/fa';
 import MetricsPanel from './components/MetricsPanel';
 import EditorStats from './components/EditorStats';
@@ -91,6 +94,8 @@ const Editor: React.FC = () => {
   const [isLoadingProgress, setIsLoadingProgress] = useState(false);
   const [isGrammarLoading, setIsGrammarLoading] = useState(false);
   const [isGeneratingReport, setIsGeneratingReport] = useState(false);
+
+  const [showConfirmClear, setShowConfirmClear] = useState(false);
 
   // Tiptap editor setup
   const editor = useEditor({
@@ -206,7 +211,7 @@ const Editor: React.FC = () => {
               ...prev,
               {
                 id: commentId,
-                content: `Possible fix: “${item.corrected}”`,
+                content: `Possible fix: " ${item.corrected} "`,
                 highlightedText: item.error,
                 resolved: false,
                 timestamp: Date.now(),
@@ -402,161 +407,219 @@ const Editor: React.FC = () => {
     newWindow.document.close();
   };
 
+  const clearAllData = () => {
+    // Clear all application data
+    localStorage.removeItem('essay-editor-content');
+    localStorage.removeItem('essay-editor-comments');
+    localStorage.removeItem('essay-editor-ui-state');
+    
+    // Reload the page to reset the editor
+    window.location.reload();
+  };
+
   return (
     <div className="border rounded-md overflow-hidden bg-white">
-      {/* ========== Top Bar ========== */}
-      <div className="flex items-center justify-between bg-slate-100 px-3 py-2 border-b">
-        <h2 className="text-slate-700 font-medium">Essay Editor</h2>
+      {/* ========== Header Area with Logo and Navigation ========== */}
+      <div className="flex items-center justify-between bg-slate-100 px-4 py-2 border-b">
+        {/* Logo on the left */}
+        <div className="flex-shrink-0">
+          <img 
+            src={logoSvg}
+            alt="Flair logo" 
+            className="h-32"
+          />
+        </div>
+        
+        {/* Navigation buttons and controls - right aligned */}
+        <div className="flex flex-col">
+          {/* Top row of buttons */}
+          <div className="flex items-center justify-end gap-2 mb-2">
+            {/* File Browser Button */}
+            <button
+              onClick={() => {
+                setShowFileBrowser(true);
+                fetchEssays();
+              }}
+              className="flex items-center gap-1 px-3 py-1 text-sm font-medium rounded bg-indigo-600 text-white hover:bg-indigo-700 transition-colors"
+            >
+              <FaFolderOpen className="w-4 h-4" />
+              Files
+            </button>
 
-        <div className="flex items-center gap-2">
-          {/* File Browser Button */}
-          <button
-            onClick={() => {
-              setShowFileBrowser(true);
-              fetchEssays();
-            }}
-            className="flex items-center gap-1 px-3 py-1 text-sm font-medium rounded bg-indigo-600 text-white hover:bg-indigo-700 transition-colors"
-          >
-            <FaFolderOpen className="w-4 h-4" />
-            Files
-          </button>
+            {/* Trigger Comments */}
+            <button
+              onClick={() => {
+                setShowComments(!showComments);
+                if (!showComments) {
+                  setShowInsights(false);
+                  setShowMetrics(false);
+                }
+              }}
+              className={`flex items-center gap-1 px-3 py-1 text-sm font-medium rounded transition-colors ${
+                showComments ? 'bg-blue-600 text-white' : 'bg-slate-200 text-slate-700'
+              }`}
+            >
+              <FaComment className="w-4 h-4" />
+              {showComments ? 'Hide' : 'Comments'}
+              {comments.length > 0 && (
+                <span className="ml-1 bg-white text-blue-600 rounded-full w-5 h-5 flex items-center justify-center text-xs">
+                  {comments.length}
+                </span>
+              )}
+            </button>
 
-          {/* Trigger Comments */}
-          <button
-            onClick={() => {
-              setShowComments(!showComments);
-              if (!showComments) {
-                setShowInsights(false);
-                setShowMetrics(false);
-              }
-            }}
-            className={`flex items-center gap-1 px-3 py-1 text-sm font-medium rounded transition-colors ${
-              showComments ? 'bg-blue-600 text-white' : 'bg-slate-200 text-slate-700'
-            }`}
-          >
-            <FaComment className="w-4 h-4" />
-            {showComments ? 'Hide' : 'Comments'}
-            {comments.length > 0 && (
-              <span className="ml-1 bg-white text-blue-600 rounded-full w-5 h-5 flex items-center justify-center text-xs">
-                {comments.length}
-              </span>
-            )}
-          </button>
+            {/* Insights */}
+            <button
+              onClick={() => {
+                setShowInsights(!showInsights);
+                if (!showInsights) {
+                  setShowComments(false);
+                  setShowMetrics(false);
+                }
+              }}
+              className={`flex items-center gap-1 px-3 py-1 text-sm font-medium rounded transition-colors ${
+                showInsights ? 'bg-blue-600 text-white' : 'bg-slate-200 text-slate-700'
+              }`}
+            >
+              <FaChartLine className="w-4 h-4" />
+              {showInsights ? 'Hide' : 'Insights'}
+            </button>
 
-          {/* Insights */}
-          <button
-            onClick={() => {
-              setShowInsights(!showInsights);
-              if (!showInsights) {
-                setShowComments(false);
-                setShowMetrics(false);
-              }
-            }}
-            className={`flex items-center gap-1 px-3 py-1 text-sm font-medium rounded transition-colors ${
-              showInsights ? 'bg-blue-600 text-white' : 'bg-slate-200 text-slate-700'
-            }`}
-          >
-            <FaChartLine className="w-4 h-4" />
-            {showInsights ? 'Hide' : 'Insights'}
-          </button>
+            {/* Metrics */}
+            <button
+              onClick={() => {
+                setShowMetrics(!showMetrics);
+                if (!showMetrics) {
+                  setShowComments(false);
+                  setShowInsights(false);
+                }
+              }}
+              className={`flex items-center gap-1 px-3 py-1 text-sm font-medium rounded transition-colors ${
+                showMetrics ? 'bg-blue-600 text-white' : 'bg-slate-200 text-slate-700'
+              }`}
+            >
+              <FaChartBar className="w-4 h-4" />
+              {showMetrics ? 'Hide Metrics' : 'Metrics'}
+            </button>
 
-          {/* Metrics */}
-          <button
-            onClick={() => {
-              setShowMetrics(!showMetrics);
-              if (!showMetrics) {
-                setShowComments(false);
-                setShowInsights(false);
-              }
-            }}
-            className={`flex items-center gap-1 px-3 py-1 text-sm font-medium rounded transition-colors ${
-              showMetrics ? 'bg-blue-600 text-white' : 'bg-slate-200 text-slate-700'
-            }`}
-          >
-            <FaChartBar className="w-4 h-4" />
-            {showMetrics ? 'Hide Metrics' : 'Metrics'}
-          </button>
+            {/* Grammar Check */}
+            <button
+              onClick={isGrammarLoading ? undefined : handleGrammarCheck}
+              disabled={isGrammarLoading}
+              className={`flex items-center gap-1 px-3 py-1 text-sm font-medium rounded transition-colors text-white
+                ${isGrammarLoading ? 'bg-purple-400 cursor-not-allowed' : 'bg-purple-600 hover:bg-purple-700'}
+              `}
+            >
+              {isGrammarLoading ? (
+                <span className="flex items-center">
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-1"></div>
+                  Checking...
+                </span>
+              ) : (
+                <>
+                  <FaSpellCheck className="w-4 h-4" />
+                  Check Grammar
+                </>
+              )}
+            </button>
 
-          {/* Grammar Check */}
-          <button
-            onClick={isGrammarLoading ? undefined : handleGrammarCheck}
-            disabled={isGrammarLoading}
-            className={`flex items-center gap-1 px-3 py-1 text-sm font-medium rounded transition-colors text-white
-              ${isGrammarLoading ? 'bg-purple-400 cursor-not-allowed' : 'bg-purple-600 hover:bg-purple-700'}
-            `}
-          >
-            {isGrammarLoading ? (
-              <span className="flex items-center">
-                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-1"></div>
-                Checking...
-              </span>
-            ) : (
-              <>
-                <FaSpellCheck className="w-4 h-4" />
-                Check Grammar
-              </>
-            )}
-          </button>
-                      {/* Generate / View Assignment */}
-          <button
-            onClick={isLoadingProgress ? undefined : (assignmentPdfBase64 ? openAssignmentPdf : fetchStudentProgress)}
-            disabled={isLoadingProgress}
-            className={`flex items-center gap-1 px-3 py-1 text-sm font-medium rounded transition-colors text-white
-              ${
-                assignmentPdfBase64 
-                ? 'bg-green-600 hover:bg-green-700' 
-                : 'bg-orange-500 hover:bg-orange-600'
-              }
-              ${isLoadingProgress ? 'opacity-50 cursor-not-allowed' : ''}
-            `}
-          >
-            {isLoadingProgress ? (
-              <span className="flex items-center">
-                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-1"></div>
-                Loading...
-              </span>
-            ) : assignmentPdfBase64 ? (
-              <>
-                <FaEye className="w-4 h-4" />
-                View Assignment
-              </>
-            ) : (
-              <>
-                <FaFileAlt className="w-4 h-4" />
-                Generate Assignment
-              </>
-            )}
-          </button>
-          {/* Generate Report */}
-          <button
-            onClick={isGeneratingReport ? undefined : handleGenerateReport}
-            disabled={isGeneratingReport}
-            className={`flex items-center gap-1 px-3 py-1 text-sm font-medium rounded transition-colors text-white
-              ${isGeneratingReport ? 'bg-blue-400 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700'}
-            `}
-          >
-            {isGeneratingReport ? (
-              <span className="flex items-center">
-                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-1"></div>
-                Generating...
-              </span>
-            ) : (
-              <>
-                <FaFileAlt className="w-4 h-4" />
-                Generate Report
-              </>
-            )}
-          </button>
+            {/* Generate / View Assignment */}
+            <button
+              onClick={isLoadingProgress ? undefined : (assignmentPdfBase64 ? openAssignmentPdf : fetchStudentProgress)}
+              disabled={isLoadingProgress}
+              className={`flex items-center gap-1 px-3 py-1 text-sm font-medium rounded transition-colors text-white
+                ${
+                  assignmentPdfBase64 
+                  ? 'bg-green-600 hover:bg-green-700' 
+                  : 'bg-orange-500 hover:bg-orange-600'
+                }
+                ${isLoadingProgress ? 'opacity-50 cursor-not-allowed' : ''}
+              `}
+            >
+              {isLoadingProgress ? (
+                <span className="flex items-center">
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-1"></div>
+                  Loading...
+                </span>
+              ) : assignmentPdfBase64 ? (
+                <>
+                  <FaEye className="w-4 h-4" />
+                  View Assignment
+                </>
+              ) : (
+                <>
+                  <FaFileAlt className="w-4 h-4" />
+                  Generate Assignment
+                </>
+              )}
+            </button>
+
+            {/* Generate Report */}
+            <button
+              onClick={isGeneratingReport ? undefined : handleGenerateReport}
+              disabled={isGeneratingReport}
+              className={`flex items-center gap-1 px-3 py-1 text-sm font-medium rounded transition-colors text-white
+                ${isGeneratingReport ? 'bg-blue-400 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700'}
+              `}
+            >
+              {isGeneratingReport ? (
+                <span className="flex items-center">
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-1"></div>
+                  Generating...
+                </span>
+              ) : (
+                <>
+                  <FaFileAlt className="w-4 h-4" />
+                  Generate Report
+                </>
+              )}
+            </button>
+
+            {/* Reset Button */}
+            <button
+              onClick={() => setShowConfirmClear(true)}
+              className="flex items-center gap-1 px-3 py-1 text-sm font-medium rounded bg-red-600 text-white hover:bg-red-700 transition-colors"
+            >
+              <FaEraser className="w-4 h-4" />
+              Reset
+            </button>
+          </div>
           
-
+          {/* Bottom row - Editor toolbar - right aligned */}
+          <div className="flex items-center justify-end">
+            {isLoaded && editor ? (
+              <MenuBar editor={editor} />
+            ) : (
+              <div className="text-gray-500">Loading editor...</div>
+            )}
+          </div>
         </div>
       </div>
 
-      {/* ========== MenuBar ========== */}
-      {isLoaded && editor ? (
-        <MenuBar editor={editor} />
-      ) : (
-        <div className="p-4 text-gray-500">Loading editor...</div>
+      {/* Confirmation Dialog */}
+      {showConfirmClear && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
+          <div className="bg-white p-6 rounded-lg shadow-xl max-w-md">
+            <h3 className="text-xl font-semibold mb-4">Reset All Data?</h3>
+            <p className="text-slate-600 mb-6">
+              This will clear all your essays, comments, and settings. This action cannot be undone.
+            </p>
+            <div className="flex justify-end gap-3">
+              <button
+                onClick={() => setShowConfirmClear(false)}
+                className="px-4 py-2 text-sm font-medium rounded border border-slate-300 hover:bg-slate-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={clearAllData}
+                className="px-4 py-2 text-sm font-medium rounded bg-red-600 text-white hover:bg-red-700"
+              >
+                Reset Everything
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       <div className="flex">
