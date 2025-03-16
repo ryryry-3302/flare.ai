@@ -1,28 +1,31 @@
 import React, { useState, useEffect } from 'react';
 import { useEditor, EditorContent } from '@tiptap/react';
+
 import StarterKit from '@tiptap/starter-kit';
 import Highlight from '@tiptap/extension-highlight';
 import Underline from '@tiptap/extension-underline';
 import Strike from '@tiptap/extension-strike';
+
 import MenuBar from './MenuBar';
 import BulletList from '@tiptap/extension-bullet-list';
 import OrderedList from '@tiptap/extension-ordered-list';
 import Blockquote from '@tiptap/extension-blockquote';
 import ListItem from '@tiptap/extension-list-item';
+
 import { FaChartLine, FaFont, FaClock, FaComment, FaChartBar } from 'react-icons/fa';
 import MetricsPanel from './components/MetricsPanel';
 import EditorStats from './components/EditorStats';
+
 import CommentsSidebar, { CommentData } from './components/CommentsSidebar';
 import { Comment, CommentMark } from './extensions/CommentExtension';
-import { Color } from '@tiptap/extension-color';
 import TextStyle from '@tiptap/extension-text-style';
-import { generateReport, WritingHero } from './utils/reportGenerator';
-import axios from 'axios';
+import { Color } from '@tiptap/extension-color';
 
-/**
- * If your metrics analysis uses a "RubricScore" type, define it below
- * or import from your own code.
- */
+import { generateReport } from './utils/reportGenerator'; // or your path
+import axios from 'axios';
+import { v4 as uuidv4 } from 'uuid';
+
+/** If your metrics analysis uses a "RubricScore" type, define it below or import from your own code. */
 interface RubricScore {
   category: string;
   score: number;
@@ -34,13 +37,13 @@ interface RubricScore {
   }[];
 }
 
+// Storage keys for local persistence
 const STORAGE_KEYS = {
   EDITOR_CONTENT: 'essay-editor-content',
   COMMENTS: 'essay-editor-comments',
-  UI_STATE: 'essay-editor-ui-state',
 };
 
-// Default content for new users
+/** Some default content for first-timers */
 const DEFAULT_CONTENT = `
   <h2>Welcome to the Essay Editor</h2>
   <p>This is a rich text editor designed for reviewing and editing essays.</p>
@@ -51,10 +54,11 @@ const DEFAULT_CONTENT = `
   <blockquote>Add quotes for important passages</blockquote>
 `;
 
-const Editor = () => {
+const Editor: React.FC = () => {
   const [showMetrics, setShowMetrics] = useState(false);
   const [showInsights, setShowInsights] = useState(false);
   const [showComments, setShowComments] = useState(false);
+
   const [wordCount, setWordCount] = useState(0);
   const [comments, setComments] = useState<CommentData[]>(() => {
     const saved = localStorage.getItem(STORAGE_KEYS.COMMENTS);
@@ -63,17 +67,12 @@ const Editor = () => {
   const [activeCommentId, setActiveCommentId] = useState<string | null>(null);
   const [isLoaded, setIsLoaded] = useState(false);
   const [currentAnalysis, setCurrentAnalysis] = useState<RubricScore[]>([]);
-  const [showHistory, setShowHistory] = useState(false);
-  const [essayHistory, setEssayHistory] = useState<any[]>([]);
-  const [currentWritingHero, setCurrentWritingHero] = useState<WritingHero | null>(null);
 
-  // Initialize editor with saved content
+  // Tiptap editor setup
   const editor = useEditor({
     extensions: [
       StarterKit,
-      Highlight.configure({
-        multicolor: true,
-      }),
+      Highlight.configure({ multicolor: true }),
       Underline,
       Strike,
       BulletList,
@@ -88,9 +87,11 @@ const Editor = () => {
     content: localStorage.getItem(STORAGE_KEYS.EDITOR_CONTENT) || DEFAULT_CONTENT,
     onUpdate: ({ editor }) => {
       const text = editor.getText();
+      // Update word count
       const words = text.trim().split(/\s+/);
       setWordCount(text.trim() ? words.length : 0);
 
+      // Persist content
       try {
         localStorage.setItem(STORAGE_KEYS.EDITOR_CONTENT, editor.getHTML());
       } catch (error) {
@@ -99,7 +100,7 @@ const Editor = () => {
     },
   });
 
-  // Ensure editor is fully loaded before rendering components
+  // Wait until editor fully loads
   useEffect(() => {
     if (editor) {
       const text = editor.getText();
@@ -108,21 +109,19 @@ const Editor = () => {
     }
   }, [editor]);
 
-  // Sync comments to localStorage whenever `comments` changes
+  // Persist comments to localStorage
   useEffect(() => {
-    if (comments.length > 0) {
+    if (comments.length) {
       localStorage.setItem(STORAGE_KEYS.COMMENTS, JSON.stringify(comments));
     } else {
-      // If no comments, remove them from localStorage so they're truly "flushed"
       localStorage.removeItem(STORAGE_KEYS.COMMENTS);
     }
   }, [comments]);
 
-  // Listen for commentClick events (from the Tiptap plugin) so we can open the sidebar, etc.
+  // Listen for "commentClick" events from Tiptap plugin
   useEffect(() => {
     const handleCommentClick = (e: CustomEvent) => {
-      // Show comments, hide others
-      setShowComments(true);
+      setShowComments(true); // open comments
       setShowInsights(false);
       setShowMetrics(false);
       setActiveCommentId(e.detail.id);
@@ -134,106 +133,100 @@ const Editor = () => {
     };
   }, []);
 
-  // Fetch previous essays from your server
-  async function fetchHistory() {
-    try {
-      const res = await axios.get('http://localhost:5000/api/list-essays');
-      setEssayHistory(res.data || []);
-    } catch (error) {
-      console.error('Failed to fetch essay history:', error);
-    }
-  }
-
-  function handleLoadHistory() {
-    setShowHistory(!showHistory);
-    if (!showHistory) {
-      fetchHistory();
-    }
-  }
-
-  /**
-   * When the user selects an old essay from the list:
-   * - Overwrite the Editor content
-   * - CLEAR (flush) all comments (both state + localStorage).
-   */
-  function handleSelectEssay(essayBody: string) {
-    editor?.commands.setContent(essayBody);
-
-    // Flush comments
-    setComments([]);
-    localStorage.removeItem(STORAGE_KEYS.COMMENTS);
-
-    // Hide the history dropdown
-    setShowHistory(false);
-  }
-
-  const handleGenerateReport = async () => {
+  /** ==========  Grammar Check Logic  ========== */
+  const handleGrammarCheck = async () => {
     if (!editor) return;
-    
-    // If we don't have a writing hero yet, fetch one
-    if (!currentWritingHero) {
-      try {
-        const essayText = editor.getText();
-        const response = await axios.post('http://localhost:5000/api/writing-style', {
-          essay: essayText
-        });
-        
-        if (response.data.success && response.data.hero) {
-          setCurrentWritingHero(response.data.hero);
-        }
-      } catch (error) {
-        console.error('Error fetching writing style hero:', error);
+
+    try {
+      const text = editor.getText();
+      if (!text || text.trim().length < 10) {
+        alert('Essay text is too short to check grammar.');
+        return;
       }
+
+      // Call the Flask endpoint
+      const response = await axios.post('http://localhost:5000/api/grammar-check', {
+        essay: text,
+      });
+
+      if (response.data.success && response.data.corrections) {
+        const corrections = response.data.corrections as {
+          error: string;
+          starting_index: number;
+          corrected: string;
+        }[];
+
+        // We'll highlight each "error" text with a comment so user can see suggested correction
+        // For safety, sort them in ascending order of `starting_index` to avoid confusion
+        const sorted = corrections.slice().sort((a, b) => a.starting_index - b.starting_index);
+
+        // Because the user might have typed or changed text, 
+        // we interpret the indexes as best as we can. 
+        // But if your text hasn't changed, these indexes will match exactly.
+
+        // We'll highlight them with a comment for now (not auto-correcting text).
+        // If you want to auto-correct, you'd do an editor.replaceRange or something similar.
+        sorted.forEach((item) => {
+          const from = item.starting_index;
+          const to = from + item.error.length;
+
+          // Safety check
+          if (from >= 0 && to <= text.length && from < to) {
+            // Create unique ID for the new comment
+            const commentId = uuidv4();
+
+            // Apply Tiptap selection
+            editor.chain().setTextSelection({ from, to }).run();
+
+            // Use the comment extension to highlight the selection
+            editor.chain().setComment(commentId).run();
+
+            // Add to our comments state so it appears in the sidebar
+            setComments((prev) => [
+              ...prev,
+              {
+                id: commentId,
+                content: `Possible fix: “${item.corrected}”`,
+                highlightedText: item.error,
+                resolved: false,
+                timestamp: Date.now(),
+              },
+            ]);
+          } else {
+            console.warn('Grammar check index out of range:', item);
+          }
+        });
+
+        alert('Grammar check complete! See new highlights in Comments.');
+      } else {
+        alert('No corrections found or server error.');
+      }
+    } catch (err) {
+      console.error('Grammar check failed:', err);
+      alert('Grammar check error. See console for details.');
     }
-    
-    // Generate the report with all available data
+  };
+
+  /** ==========  Generate PDF-like Report  ========== */
+  const handleGenerateReport = () => {
+    if (!editor) return;
+
     generateReport({
       essayContent: editor.getHTML(),
       comments,
       wordCount,
-      analysis: currentAnalysis, 
-      writingHero: currentWritingHero || undefined // Include the writing hero if available
+      analysis: currentAnalysis,
     });
   };
 
   return (
     <div className="border rounded-md overflow-hidden bg-white">
-      {/* Top Bar */}
+      {/* ========== Top Bar ========== */}
       <div className="flex items-center justify-between bg-slate-100 px-3 py-2 border-b">
-        <div className="flex items-center gap-3">
-          <h2 className="text-slate-700 font-medium">Essay Editor</h2>
+        <h2 className="text-slate-700 font-medium">Essay Editor</h2>
 
-          {/* View History Button + Dropdown */}
-          <div className="relative inline-block">
-            <button
-              onClick={handleLoadHistory}
-              className="bg-blue-600 text-white px-3 py-1 rounded"
-            >
-              View History
-            </button>
-            {showHistory && (
-              <div className="absolute left-0 mt-2 w-64 bg-white border border-gray-200 rounded shadow-lg z-10">
-                <span className="block px-3 py-2 font-bold border-b bg-gray-50">Previously Uploaded</span>
-                {essayHistory.length > 0 ? (
-                  essayHistory.map((essay) => (
-                    <button
-                      key={essay.id}
-                      onClick={() => handleSelectEssay(essay.essay_body)}
-                      className="block w-full text-left py-2 px-3 hover:bg-blue-50"
-                    >
-                      {essay.title || `Essay #${essay.id}`}
-                    </button>
-                  ))
-                ) : (
-                  <div className="py-2 px-3 text-gray-500">No essays found.</div>
-                )}
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* Top Bar Right-Side Buttons */}
-        <div className="flex gap-2">
+        <div className="flex items-center gap-2">
+          {/* Trigger Comments */}
           <button
             onClick={() => {
               setShowComments(!showComments);
@@ -255,6 +248,7 @@ const Editor = () => {
             )}
           </button>
 
+          {/* Insights */}
           <button
             onClick={() => {
               setShowInsights(!showInsights);
@@ -271,6 +265,7 @@ const Editor = () => {
             {showInsights ? 'Hide' : 'Insights'}
           </button>
 
+          {/* Metrics */}
           <button
             onClick={() => {
               setShowMetrics(!showMetrics);
@@ -287,20 +282,33 @@ const Editor = () => {
             {showMetrics ? 'Hide Metrics' : 'Metrics'}
           </button>
 
+          {/* Grammar Check */}
+          <button
+            onClick={handleGrammarCheck}
+            className="px-3 py-1 rounded bg-purple-600 text-white font-medium transition-colors hover:bg-purple-700"
+          >
+            Check Grammar
+          </button>
+
+          {/* Generate Report */}
           <button
             onClick={handleGenerateReport}
-            className="bg-blue-600 text-white px-3 py-1 rounded"
+            className="bg-blue-600 text-white px-3 py-1 rounded hover:bg-blue-700 transition-colors"
           >
             Generate Report
           </button>
         </div>
       </div>
 
-      {/* Show Menu Bar after Editor is loaded */}
-      {isLoaded && editor ? <MenuBar editor={editor} /> : <div className="p-4 text-gray-500">Loading editor...</div>}
+      {/* ========== MenuBar ========== */}
+      {isLoaded && editor ? (
+        <MenuBar editor={editor} />
+      ) : (
+        <div className="p-4 text-gray-500">Loading editor...</div>
+      )}
 
       <div className="flex">
-        {/* Main Editor Section */}
+        {/* ========== Main Editor ========== */}
         <div className={`${showInsights || showComments ? 'w-2/3' : 'w-full'} transition-all duration-300`}>
           <EditorContent editor={editor} className="prose max-w-none p-4 min-h-[300px]" />
 
@@ -317,7 +325,7 @@ const Editor = () => {
           </div>
         </div>
 
-        {/* Right Sidebar Conditionals */}
+        {/* ========== Right-Side Panels ========== */}
         {showComments && (
           <div className="w-1/3 border-l">
             <CommentsSidebar
@@ -332,16 +340,12 @@ const Editor = () => {
 
         {showInsights && !showComments && (
           <div className="w-1/3 border-l p-4 bg-slate-50">
-            <EditorStats 
-              wordCount={wordCount} 
-              editor={editor} 
-              onAnalysisComplete={(hero) => setCurrentWritingHero(hero)}
-            />
+            <EditorStats wordCount={wordCount} editor={editor} />
           </div>
         )}
       </div>
 
-      {/* Metrics Panel */}
+      {/* ========== Metrics Panel ========== */}
       {showMetrics && editor && (
         <MetricsPanel
           onClose={() => setShowMetrics(false)}
