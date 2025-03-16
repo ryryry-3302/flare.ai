@@ -17,7 +17,6 @@ class RubricScore(TypedDict):
     category: str
     score: int
     explanation: List[str]
-    comments: List[Comment]
 
 client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
 
