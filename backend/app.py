@@ -596,3 +596,4 @@ if __name__ == '__main__':
             print("Unexpected response format:", response)
 
     app.run(debug=True, host='0.0.0.0', port=5000, threaded=True)
+    print(os.environ.get('GEMINI_API_KEY'))
