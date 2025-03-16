@@ -21,16 +21,24 @@ export interface WritingHero {
   icon: string;
 }
 
+// Add these new fields to the ReportGeneratorOptions interface
+
+export interface StudentProgress {
+  common_mistakes: string[];
+  improvements: string[];
+}
+
 interface ReportGeneratorOptions {
   essayContent: string;
   comments: CommentData[]; // Update to use CommentData type
   wordCount: number;
   analysis?: RubricScore[]; // Optional to maintain backward compatibility
   writingHero?: WritingHero; // Add the writing hero to options
+  studentProgress?: StudentProgress; // Add this new field
 }
 
 export const generateReport = (options: ReportGeneratorOptions): Window | null => {
-  let { essayContent, comments, wordCount, analysis = [], writingHero } = options;
+  let { essayContent, comments, wordCount, analysis = [], writingHero, studentProgress } = options;
 
   // Provide default analysis if none is provided
   if (!analysis?.length) {
@@ -180,7 +188,8 @@ export const generateReport = (options: ReportGeneratorOptions): Window | null =
     comments, 
     analysis, 
     wordCount,
-    writingHero // Pass the writing hero to the HTML generator
+    writingHero, // Pass the writing hero to the HTML generator
+    studentProgress // Pass the student progress to the HTML generator
   );
 
   // Write the report content to the new window
@@ -508,7 +517,8 @@ export const generateReportHTML = (
   comments: CommentData[], 
   analysis: RubricScore[],
   wordCount: number,
-  writingHero?: WritingHero // Add the writingHero parameter
+  writingHero?: WritingHero, // Add the writingHero parameter
+  studentProgress?: StudentProgress // Add this parameter
 ): string => {
   const today = new Date();
   const dateString = today.toLocaleDateString('en-US', {
@@ -619,6 +629,47 @@ export const generateReportHTML = (
     `
     : '';
 
+  // Build the student progress section
+  const studentProgressSection = studentProgress 
+    ? `
+      <div class="section progress-section" style="margin-top: 3rem; background: linear-gradient(135deg, #ecfdf5, #d1fae5); border-radius: 12px; padding: 1.5rem; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);">
+        <h2>Your Writing Progress</h2>
+        
+        <div class="progress-container" style="display: flex; gap: 1.5rem; margin-top: 1rem;">
+          <div class="mistakes-container" style="flex: 1; background-color: white; border-radius: 8px; padding: 1.25rem; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+            <h3 style="margin-top: 0; margin-bottom: 1rem; color: #b91c1c; display: flex; align-items: center; gap: 0.5rem;">
+              <span style="font-size: 1.25rem;">⚠️</span> Areas to Improve
+            </h3>
+            
+            ${studentProgress.common_mistakes.length > 0 
+              ? `<ul style="margin: 0; padding-left: 1.5rem;">
+                  ${studentProgress.common_mistakes.map(mistake => 
+                    `<li style="margin-bottom: 0.5rem;">${mistake}</li>`
+                  ).join('')}
+                </ul>`
+              : `<p style="color: #4b5563; font-style: italic;">No recurring issues identified yet.</p>`
+            }
+          </div>
+          
+          <div class="improvements-container" style="flex: 1; background-color: white; border-radius: 8px; padding: 1.25rem; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+            <h3 style="margin-top: 0; margin-bottom: 1rem; color: #047857; display: flex; align-items: center; gap: 0.5rem;">
+              <span style="font-size: 1.25rem;">🌟</span> Improvements Observed
+            </h3>
+            
+            ${studentProgress.improvements.length > 0 
+              ? `<ul style="margin: 0; padding-left: 1.5rem;">
+                  ${studentProgress.improvements.map(improvement => 
+                    `<li style="margin-bottom: 0.5rem;">${improvement}</li>`
+                  ).join('')}
+                </ul>`
+              : `<p style="color: #4b5563; font-style: italic;">Continue writing essays to track your improvements!</p>`
+            }
+          </div>
+        </div>
+      </div>
+    `
+    : '';
+
   // Build the teacher comments section
   const commentsSection = `
     ${
@@ -695,8 +746,11 @@ export const generateReportHTML = (
     </div>
   </header>
 
-  <!-- Writing Style Hero Section (NEW) -->
+  <!-- Writing Style Hero Section -->
   ${writingHeroSection}
+  
+  <!-- Student Progress Section (NEW) -->
+  ${studentProgressSection}
 
   <!-- Analysis section -->
   ${analysisSection}

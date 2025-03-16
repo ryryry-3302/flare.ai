@@ -21,7 +21,7 @@ import { Comment, CommentMark } from './extensions/CommentExtension';
 import TextStyle from '@tiptap/extension-text-style';
 import { Color } from '@tiptap/extension-color';
 
-import { generateReport, WritingHero } from './utils/reportGenerator'; // or your path
+import { generateReport, WritingHero, StudentProgress } from './utils/reportGenerator'; // or your path
 import axios from 'axios';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -68,6 +68,9 @@ const Editor: React.FC = () => {
   const [isLoaded, setIsLoaded] = useState(false);
   const [currentAnalysis, setCurrentAnalysis] = useState<RubricScore[]>([]);
   const [currentWritingHero, setCurrentWritingHero] = useState<WritingHero | null>(null);
+  const [studentProgress, setStudentProgress] = useState<StudentProgress | null>(null);
+  const [assignmentPdfBase64, setAssignmentPdfBase64] = useState<string | null>(null);
+  const [isLoadingProgress, setIsLoadingProgress] = useState(false);
 
   // Tiptap editor setup
   const editor = useEditor({
@@ -212,6 +215,16 @@ const Editor: React.FC = () => {
   const handleGenerateReport = async () => {
     if (!editor) return;
     
+    // If we don't have student progress yet, try to fetch it
+    if (!studentProgress) {
+      try {
+        await fetchStudentProgress();
+      } catch (error) {
+        console.error('Error fetching student progress for report:', error);
+        // Continue generating report even without student progress
+      }
+    }
+
     // If we don't have a writing hero yet, try to fetch one
     if (!currentWritingHero) {
       try {
@@ -238,8 +251,98 @@ const Editor: React.FC = () => {
       comments,
       wordCount,
       analysis: currentAnalysis,
-      writingHero: currentWritingHero || undefined // Pass the writing hero if available
+      writingHero: currentWritingHero || undefined, // Pass the writing hero if available
+      studentProgress: studentProgress || undefined
     });
+  };
+
+  // Add this function to fetch student progress
+  const fetchStudentProgress = async () => {
+    try {
+      setIsLoadingProgress(true);
+      const response = await axios.get('http://localhost:5000/api/student-progress');
+      
+      if (response.data && response.data.success) {
+        const { common_mistakes, improvements, pdf } = response.data;
+        
+        // Store the progress data
+        setStudentProgress({
+          common_mistakes,
+          improvements
+        });
+        
+        // Store the PDF data
+        setAssignmentPdfBase64(pdf);
+      }
+    } catch (error) {
+      console.error('Error fetching student progress:', error);
+      alert('Failed to fetch student progress data');
+    } finally {
+      setIsLoadingProgress(false);
+    }
+  };
+
+  // Add a function to open the assignment PDF in a new tab
+  const openAssignmentPdf = () => {
+    if (!assignmentPdfBase64) {
+      alert('No assignment available. Please generate assignments first.');
+      return;
+    }
+    
+    // Create a new window and open the PDF
+    const newWindow = window.open('', '_blank');
+    if (!newWindow) {
+      alert('Please allow popups to view the assignment');
+      return;
+    }
+
+    newWindow.document.write(`
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <title>Writing Assignment</title>
+        <style>
+          body {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            font-family: system-ui, sans-serif;
+            margin: 0;
+            padding: 20px;
+          }
+          .controls {
+            margin-bottom: 20px;
+          }
+          .pdf-container {
+            width: 100%;
+            max-width: 800px;
+            height: 800px;
+          }
+        </style>
+      </head>
+      <body>
+        <div class="controls">
+          <button onclick="document.getElementById('pdfObj').print()">Print Assignment</button>
+          <a href="data:application/pdf;base64,${assignmentPdfBase64}" download="writing_assignment.pdf">
+            <button>Download PDF</button>
+          </a>
+        </div>
+        
+        <div class="pdf-container">
+          <object 
+            id="pdfObj"
+            data="data:application/pdf;base64,${assignmentPdfBase64}" 
+            type="application/pdf" 
+            width="100%" 
+            height="100%">
+            <p>It appears you don't have a PDF plugin for this browser. 
+            <a href="data:application/pdf;base64,${assignmentPdfBase64}">Click here to download the PDF file.</a></p>
+          </object>
+        </div>
+      </body>
+      </html>
+    `);
+    newWindow.document.close();
   };
 
   return (
@@ -319,6 +422,30 @@ const Editor: React.FC = () => {
             className="bg-blue-600 text-white px-3 py-1 rounded hover:bg-blue-700 transition-colors"
           >
             Generate Report
+          </button>
+          
+          {/* Generate Assignments - NEW */}
+          <button
+            onClick={isLoadingProgress ? undefined : fetchStudentProgress}
+            disabled={isLoadingProgress}
+            className={`px-3 py-1 rounded ${
+              assignmentPdfBase64 
+                ? 'bg-green-600 hover:bg-green-700' 
+                : 'bg-orange-500 hover:bg-orange-600'
+            } text-white font-medium transition-colors ${
+              isLoadingProgress ? 'opacity-50 cursor-not-allowed' : ''
+            }`}
+          >
+            {isLoadingProgress ? (
+              <span className="flex items-center">
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                Loading...
+              </span>
+            ) : assignmentPdfBase64 ? (
+              <span onClick={openAssignmentPdf}>View Assignment</span>
+            ) : (
+              "Generate Assignment"
+            )}
           </button>
         </div>
       </div>
