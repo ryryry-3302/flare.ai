@@ -20,6 +20,7 @@
     "@tiptap/react": "^2.11.5",
     "@tiptap/starter-kit": "^2.11.5",
     "@types/uuid": "^10.0.0",
+    "axios": "^1.8.3",
     "framer-motion": "^12.5.0",
     "qrcode.react": "^4.2.0",
     "react": "^19.0.0",

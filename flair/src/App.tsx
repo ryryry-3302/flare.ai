@@ -19,7 +19,7 @@ const App = () => {
     <div className="max-w-[1400px] mx-auto mt-6 px-4 mb-10">
       <div className="bg-white/80 backdrop-blur-sm rounded-xl shadow-xl p-6">
         <div className="flex justify-between items-center mb-6">
-          <h1 className="text-3xl font-bold">Essay Review Tool</h1>
+          <h1 className="text-3xl font-bold">Flair</h1>
           <button 
             className="bg-red-50 text-red-600 hover:bg-red-100 px-3 py-1.5 rounded-md text-sm font-medium flex items-center gap-1.5 transition-colors"
             onClick={() => setShowConfirmClear(true)}

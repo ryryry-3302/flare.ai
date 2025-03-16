@@ -46,14 +46,18 @@ const CommentsSidebar: React.FC<CommentsSidebarProps> = ({
     if (!editor || !newComment.trim()) return;
     
     const { from, to } = editor.state.selection;
-    
-    // Only allow commenting on an actual selection
     if (from === to) {
       alert('Please select some text to comment on.');
       return;
     }
     
+    // Generate a new, real comment ID
     const id = uuidv4();
+    
+    // Remove any "pending" highlight first,
+    // then apply the real comment mark with the generated ID.
+    editor.commands.unsetComment('pending');
+    editor.commands.setComment(id);
     
     // Get the selected text
     const selectedText = editor.state.doc.textBetween(from, to);
@@ -62,17 +66,12 @@ const CommentsSidebar: React.FC<CommentsSidebarProps> = ({
     const comment: CommentData = {
       id,
       content: newComment,
-      author: 'Teacher',
-      timestamp: new Date().getTime(),
+      highlightedText: selectedText,
       resolved: false,
-      selection: { from, to },
-      highlightedText: selectedText // Make sure this field is being populated
+      timestamp: Date.now()
     };
     
     setComments([...comments, comment]);
-    
-    // Apply the comment mark to the selected text
-    editor.chain().setComment(id).run();
     
     setNewComment('');
     setActiveCommentId(id);

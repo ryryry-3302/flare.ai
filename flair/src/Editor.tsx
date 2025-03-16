@@ -15,8 +15,23 @@ import { Comment, CommentMark } from './extensions/CommentExtension';
 import Underline from '@tiptap/extension-underline';
 import { Color } from '@tiptap/extension-color';
 import { generateReport } from './utils/reportGenerator';
+import axios from 'axios';
 
-// Storage keys
+/**
+ * If your metrics analysis uses a "RubricScore" type, define it below
+ * or import from your own code.
+ */
+interface RubricScore {
+  category: string;
+  score: number;
+  explanation: string[];
+  comments?: {
+    comment: string;
+    start_index: number;
+    end_index: number;
+  }[];
+}
+
 const STORAGE_KEYS = {
   EDITOR_CONTENT: 'essay-editor-content',
   COMMENTS: 'essay-editor-comments',
@@ -40,12 +55,14 @@ const Editor = () => {
   const [showComments, setShowComments] = useState(false);
   const [wordCount, setWordCount] = useState(0);
   const [comments, setComments] = useState<CommentData[]>(() => {
-    const saved = localStorage.getItem('essay-editor-comments');
+    const saved = localStorage.getItem(STORAGE_KEYS.COMMENTS);
     return saved ? JSON.parse(saved) : [];
   });
   const [activeCommentId, setActiveCommentId] = useState<string | null>(null);
   const [isLoaded, setIsLoaded] = useState(false);
   const [currentAnalysis, setCurrentAnalysis] = useState<RubricScore[]>([]);
+  const [showHistory, setShowHistory] = useState(false);
+  const [essayHistory, setEssayHistory] = useState<any[]>([]);
 
   // Initialize editor with saved content
   const editor = useEditor({
@@ -86,12 +103,64 @@ const Editor = () => {
     }
   }, [editor]);
 
-  // Add effect to save comments
+  // Sync comments to localStorage whenever `comments` changes
   useEffect(() => {
     if (comments.length > 0) {
-      localStorage.setItem('essay-editor-comments', JSON.stringify(comments));
+      localStorage.setItem(STORAGE_KEYS.COMMENTS, JSON.stringify(comments));
+    } else {
+      // If no comments, remove them from localStorage so they're truly "flushed"
+      localStorage.removeItem(STORAGE_KEYS.COMMENTS);
     }
   }, [comments]);
+
+  // Listen for commentClick events (from the Tiptap plugin) so we can open the sidebar, etc.
+  useEffect(() => {
+    const handleCommentClick = (e: CustomEvent) => {
+      // Show comments, hide others
+      setShowComments(true);
+      setShowInsights(false);
+      setShowMetrics(false);
+      setActiveCommentId(e.detail.id);
+    };
+
+    document.addEventListener('commentClick', handleCommentClick as EventListener);
+    return () => {
+      document.removeEventListener('commentClick', handleCommentClick as EventListener);
+    };
+  }, []);
+
+  // Fetch previous essays from your server
+  async function fetchHistory() {
+    try {
+      const res = await axios.get('http://localhost:5000/api/list-essays');
+      setEssayHistory(res.data || []);
+    } catch (error) {
+      console.error('Failed to fetch essay history:', error);
+    }
+  }
+
+  function handleLoadHistory() {
+    setShowHistory(!showHistory);
+    if (!showHistory) {
+      fetchHistory();
+    }
+  }
+
+  /**
+   * When the user selects an old essay from the list:
+   * - Overwrite the Editor content
+   * - CLEAR (flush) all comments (both state + localStorage).
+   */
+  function handleSelectEssay(essayBody: string) {
+    editor?.commands.setContent(essayBody);
+
+    // Flush comments
+    setComments([]);
+    localStorage.removeItem(STORAGE_KEYS.COMMENTS);
+
+    // Hide the history dropdown
+    setShowHistory(false);
+  }
 
   const handleGenerateReport = () => {
     if (!editor) return;
@@ -99,7 +168,7 @@ const Editor = () => {
       essayContent: editor.getHTML(),
       comments,
       wordCount,
-      analysis: currentAnalysis // Use the stored analysis
+      analysis: currentAnalysis, // Use the stored analysis
     });
   };
 
@@ -107,7 +176,39 @@ const Editor = () => {
     <div className="border rounded-md overflow-hidden bg-white">
       {/* Top Bar */}
       <div className="flex items-center justify-between bg-slate-100 px-3 py-2 border-b">
-        <h2 className="text-slate-700 font-medium">Essay Editor</h2>
+        <div className="flex items-center gap-3">
+          <h2 className="text-slate-700 font-medium">Essay Editor</h2>
+
+          {/* View History Button + Dropdown */}
+          <div className="relative inline-block">
+            <button
+              onClick={handleLoadHistory}
+              className="bg-blue-600 text-white px-3 py-1 rounded"
+            >
+              View History
+            </button>
+            {showHistory && (
+              <div className="absolute left-0 mt-2 w-64 bg-white border border-gray-200 rounded shadow-lg z-10">
+                <span className="block px-3 py-2 font-bold border-b bg-gray-50">Previously Uploaded</span>
+                {essayHistory.length > 0 ? (
+                  essayHistory.map((essay) => (
+                    <button
+                      key={essay.id}
+                      onClick={() => handleSelectEssay(essay.essay_body)}
+                      className="block w-full text-left py-2 px-3 hover:bg-blue-50"
+                    >
+                      {essay.title || `Essay #${essay.id}`}
+                    </button>
+                  ))
+                ) : (
+                  <div className="py-2 px-3 text-gray-500">No essays found.</div>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Top Bar Right-Side Buttons */}
         <div className="flex gap-2">
           <button
             onClick={() => {
@@ -146,7 +247,6 @@ const Editor = () => {
             {showInsights ? 'Hide' : 'Insights'}
           </button>
 
-          {/* New Metrics button */}
           <button
             onClick={() => {
               setShowMetrics(!showMetrics);
@@ -172,15 +272,15 @@ const Editor = () => {
         </div>
       </div>
 
-      {/* Wait for editor to load before showing MenuBar */}
+      {/* Show Menu Bar after Editor is loaded */}
       {isLoaded && editor ? <MenuBar editor={editor} /> : <div className="p-4 text-gray-500">Loading editor...</div>}
 
       <div className="flex">
-        {/* Main Editor */}
+        {/* Main Editor Section */}
         <div className={`${showInsights || showComments ? 'w-2/3' : 'w-full'} transition-all duration-300`}>
           <EditorContent editor={editor} className="prose max-w-none p-4 min-h-[300px]" />
 
-          {/* Word count footer */}
+          {/* Word Count Footer */}
           <div className="flex items-center justify-between px-4 py-2 border-t bg-slate-50 text-sm text-slate-600">
             <div className="flex items-center gap-2">
               <FaFont className="w-3.5 h-3.5" />
@@ -193,7 +293,7 @@ const Editor = () => {
           </div>
         </div>
 
-        {/* Right Sidebar */}
+        {/* Right Sidebar Conditionals */}
         {showComments && (
           <div className="w-1/3 border-l">
             <CommentsSidebar
@@ -215,13 +315,13 @@ const Editor = () => {
 
       {/* Metrics Panel */}
       {showMetrics && editor && (
-        <MetricsPanel 
-          onClose={() => setShowMetrics(false)} 
+        <MetricsPanel
+          onClose={() => setShowMetrics(false)}
           editor={editor}
           initialAnalysis={currentAnalysis}
           onAnalysisComplete={setCurrentAnalysis}
-          comments={comments} // Add this line
-          wordCount={wordCount} // Pass in the current Editor word count
+          comments={comments}
+          wordCount={wordCount}
         />
       )}
     </div>
