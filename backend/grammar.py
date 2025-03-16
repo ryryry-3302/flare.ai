@@ -30,7 +30,7 @@ def corrections_from_essay(essay):
             </essay>"""
     
     response = client.models.generate_content(
-        model="gemini-2.0-pro-exp-02-05",
+        model="gemini-2.0-flash-thinking-exp-01-21",
         contents=[prompt],
         config=types.GenerateContentConfig(
             temperature=0,
