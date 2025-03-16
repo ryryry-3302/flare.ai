@@ -21,7 +21,7 @@ import { Comment, CommentMark } from './extensions/CommentExtension';
 import TextStyle from '@tiptap/extension-text-style';
 import { Color } from '@tiptap/extension-color';
 
-import { generateReport } from './utils/reportGenerator'; // or your path
+import { generateReport, WritingHero } from './utils/reportGenerator'; // or your path
 import axios from 'axios';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -67,6 +67,7 @@ const Editor: React.FC = () => {
   const [activeCommentId, setActiveCommentId] = useState<string | null>(null);
   const [isLoaded, setIsLoaded] = useState(false);
   const [currentAnalysis, setCurrentAnalysis] = useState<RubricScore[]>([]);
+  const [currentWritingHero, setCurrentWritingHero] = useState<WritingHero | null>(null);
 
   // Tiptap editor setup
   const editor = useEditor({
@@ -208,14 +209,36 @@ const Editor: React.FC = () => {
   };
 
   /** ==========  Generate PDF-like Report  ========== */
-  const handleGenerateReport = () => {
+  const handleGenerateReport = async () => {
     if (!editor) return;
-
+    
+    // If we don't have a writing hero yet, try to fetch one
+    if (!currentWritingHero) {
+      try {
+        const essayText = editor.getText();
+        
+        if (essayText.length >= 50) {
+          const response = await axios.post('http://localhost:5000/api/writing-style', {
+            essay: essayText
+          });
+          
+          if (response.data.success && response.data.hero) {
+            setCurrentWritingHero(response.data.hero);
+          }
+        }
+      } catch (error) {
+        console.error('Error fetching writing style hero for report:', error);
+        // Continue generating report even if we can't get the writing style
+      }
+    }
+  
+    // Generate the report with all available data including the writing hero
     generateReport({
       essayContent: editor.getHTML(),
       comments,
       wordCount,
       analysis: currentAnalysis,
+      writingHero: currentWritingHero || undefined // Pass the writing hero if available
     });
   };
 
@@ -340,7 +363,11 @@ const Editor: React.FC = () => {
 
         {showInsights && !showComments && (
           <div className="w-1/3 border-l p-4 bg-slate-50">
-            <EditorStats wordCount={wordCount} editor={editor} />
+            <EditorStats 
+              wordCount={wordCount} 
+              editor={editor} 
+              onAnalysisComplete={(hero) => setCurrentWritingHero(hero)}
+            />
           </div>
         )}
       </div>
