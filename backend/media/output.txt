@@ -1,0 +1,2 @@
+It looks like you're preparing to send over an essay. Whenever you're ready, please go ahead and share it with me!Hello! How can I assist you today?
+{'categories': ['Ideas', 'Organization', 'Voice', 'Word Choice', 'Sentence Fluency', 'Conventions'], 'scores': [2, 1, 2, 1, 1, 2]}
