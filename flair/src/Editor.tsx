@@ -221,6 +221,7 @@ const Editor = () => {
           initialAnalysis={currentAnalysis}
           onAnalysisComplete={setCurrentAnalysis}
           comments={comments} // Add this line
+          wordCount={wordCount} // Pass in the current Editor word count
         />
       )}
     </div>

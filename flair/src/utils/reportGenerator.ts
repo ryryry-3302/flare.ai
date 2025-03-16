@@ -20,8 +20,50 @@ interface ReportGeneratorOptions {
 }
 
 export const generateReport = (options: ReportGeneratorOptions): Window | null => {
-  const { essayContent, comments, wordCount, analysis = [] } = options;
-  
+  let { essayContent, comments, wordCount, analysis = [] } = options;
+
+  // Provide default analysis if none is provided
+  if (!analysis?.length) {
+    analysis = [
+      {
+        category: "Content (Ideas and Development)",
+        score: 5,
+        explanation: ["Sample feedback: Excellent development of ideas."],
+        comments: [],
+      },
+      {
+        category: "Structure (Organization)",
+        score: 5,
+        explanation: ["Sample feedback: Very logical and clear structure."],
+        comments: [],
+      },
+      {
+        category: "Stance (Voice and Tone)",
+        score: 5,
+        explanation: ["Sample feedback: Strong voice and appropriate tone."],
+        comments: [],
+      },
+      {
+        category: "Word Choice (Diction)",
+        score: 5,
+        explanation: ["Sample feedback: Varied and precise word choice."],
+        comments: [],
+      },
+      {
+        category: "Sentence Fluency",
+        score: 5,
+        explanation: ["Sample feedback: Sentences flow smoothly and clearly."],
+        comments: [],
+      },
+      {
+        category: "Conventions",
+        score: 5,
+        explanation: ["Sample feedback: Grammar and punctuation are on point."],
+        comments: [],
+      },
+    ];
+  }
+
   // Create a new window for the report
   const reportWindow = window.open('', '_blank');
   
@@ -155,7 +197,306 @@ const getEncouragement = (score: number): string => {
   return "Everyone starts somewhere! Let's build your writing skills together! 🌱";
 };
 
-// Main HTML generator
+const teacherRevisionScript = `
+<script>
+  function toggleEditMode() {
+    const body = document.body;
+    body.contentEditable = body.contentEditable === 'true' ? 'false' : 'true';
+    document.getElementById('editButton').innerHTML =
+      body.contentEditable === 'true'
+        ? '🔒 Lock Report'
+        : '✏️ Edit Report';
+  }
+
+  // Example function to recalc bars after scores are edited:
+  function updateScoreBars() {
+    // For each .category-container, find its .category-score and recalc .progress-fill
+    const categories = document.querySelectorAll('.category-container');
+    categories.forEach(cat => {
+      const scoreText = cat.querySelector('.category-score')?.textContent || '0/5';
+      // Expecting format like '3/5'
+      const match = scoreText.match(/(\\d+(\\.\\d+)?)\\s*\\/\\s*(\\d+)/);
+      if (!match) return;
+      const scoreVal = parseFloat(match[1] || '0');
+      const maxVal = parseFloat(match[3] || '5');
+
+      const bar = cat.querySelector('.progress-fill');
+      if (bar) {
+        const percentage = (scoreVal / maxVal) * 100;
+        bar.style.width = percentage + '%';
+      }
+    });
+  }
+</script>
+`;
+
+const styles = `
+<style>
+  body {
+    font-family: 'Comic Sans MS', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    line-height: 1.6;
+    color: #374151;
+    max-width: 800px;
+    margin: 0 auto;
+    padding: 20px;
+    background-color: #f8fafc;
+    counter-reset: comment-counter;
+  }
+  
+  header {
+    background: linear-gradient(135deg, #e0f2fe, #dbeafe);
+    border-radius: 16px;
+    padding: 2rem;
+    text-align: center;
+    margin-bottom: 2rem;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+  }
+  
+  h1 {
+    color: #1e40af;
+    font-size: 2.5rem;
+    margin-bottom: 0.5rem;
+  }
+  
+  .meta {
+    color: #6b7280;
+    font-size: 0.95rem;
+  }
+  
+  .scores {
+    display: flex;
+    flex-direction: column;
+    gap: 2rem;
+    margin: 2rem 0;
+  }
+
+  .overall-score {
+    background: linear-gradient(135deg, #e0f2fe, #dbeafe);
+    border-radius: 16px;
+    padding: 1.5rem;
+    text-align: center;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+    max-width: 400px;
+    margin: 0 auto 2rem auto;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 1.5rem;
+  }
+
+  .score-main {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+  }
+
+  .overall-score .score-value {
+    font-size: 3rem;
+    color: #1e40af;
+    line-height: 1;
+  }
+
+  .overall-score .grade-label {
+    font-size: 1.25rem;
+    color: #6b7280;
+    margin-top: 0.25rem;
+  }
+
+  .overall-score .emoji {
+    font-size: 2.5rem;
+    margin: 0;
+  }
+
+  .overall-progress {
+    flex-grow: 1;
+    max-width: 150px;
+  }
+
+  .analysis-section {
+    margin-top: 3rem;
+  }
+
+  .category-container {
+    background: white;
+    border-radius: 12px;
+    padding: 1.5rem;
+    margin-bottom: 1.5rem;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+  }
+
+  .category-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 1rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 2px solid #e5e7eb;
+  }
+
+  .category-title {
+    font-size: 1.25rem;
+    font-weight: bold;
+    color: #1e40af;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  .category-score {
+    font-size: 1.5rem;
+    font-weight: bold;
+    color: #1e40af;
+  }
+  
+  .progress-bar {
+    width: 100%;
+    height: 12px;
+    background-color: #e5e7eb;
+    border-radius: 6px;
+    margin: 0.5rem 0;
+    overflow: hidden;
+  }
+  
+  .progress-fill {
+    height: 100%;
+    transition: width 1s ease-in-out;
+  }
+
+  .essay-content {
+    margin-top: 2rem;
+    background: white;
+    border-radius: 12px;
+    padding: 1.5rem;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+  }
+
+  .comments-section {
+    margin-top: 3rem;
+    background: white;
+    border-radius: 12px;
+    padding: 1.5rem;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+  }
+
+  .comment-box {
+    background-color: #fffbeb;
+    border-left: 4px solid #fbbf24;
+    padding: 15px;
+    margin-bottom: 15px;
+    border-radius: 0 5px 5px 0;
+    position: relative;
+  }
+
+  .comment-box::before {
+    content: "[" counter(comment-counter) "]";
+    position: absolute;
+    top: 15px;
+    right: 15px;
+    color: #2563eb;
+    font-weight: bold;
+    counter-increment: comment-counter;
+  }
+
+  .comment-author {
+    font-weight: bold;
+    margin-bottom: 5px;
+  }
+
+  .comment-content {
+    margin-bottom: 5px;
+  }
+
+  .resolved .comment-content {
+    text-decoration: line-through;
+    color: #888;
+  }
+
+  .encouragement {
+    background: #f0fdf4;
+    border-radius: 12px;
+    padding: 1rem;
+    margin: 2rem 0;
+    text-align: center;
+    color: #166534;
+  }
+
+  /* Highlighted text styles */
+  .essay-comment-mark {
+    background-color: #fef3c7;
+    padding: 0.1em 0;
+    border-bottom: 2px solid #f59e0b;
+    cursor: pointer;
+    position: relative;
+  }
+
+  .comment-number {
+    color: #f59e0b;
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-decoration: none;
+    vertical-align: super;
+    margin-left: 4px;
+  }
+
+  /* Button Styles */
+  .report-btn {
+    display: inline-block;
+    background-color: #1e40af;
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    padding: 0.75rem 1.25rem;
+    cursor: pointer;
+    font-size: 1rem;
+    margin-right: 0.5rem;
+    margin-bottom: 1rem;
+    transition: background-color 0.2s ease-in-out;
+  }
+
+  .report-btn:hover {
+    background-color: #1d4ed8;
+  }
+
+  /* Hide certain elements in print */
+  .no-print {
+    display: inline-block;
+  }
+  @media print {
+    body {
+      background: white;
+    }
+    .no-print {
+      display: none;
+    }
+  }
+
+  /* Make these report buttons look nicer */
+  .no-print-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background-color: #1e40af;
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    padding: 0.6rem 1.2rem;
+    margin-right: 0.5rem;
+    margin-bottom: 1rem;
+    font-size: 0.875rem;
+    cursor: pointer;
+    transition: background-color 0.2s ease-in-out;
+  }
+  .no-print-btn:hover {
+    background-color: #2563eb;
+  }
+  @media print {
+    .no-print-btn {
+      display: none;
+    }
+  }
+</style>
+`;
+
 export const generateReportHTML = (
   essayContent: string, 
   markedEssayContent: string, 
@@ -195,261 +536,6 @@ export const generateReportHTML = (
     if (score >= 1.0) return 'D';
     return 'F';
   };
-
-  // Button toggle script (unchanged)
-  const teacherRevisionScript = `
-<script>
-  function toggleEditMode() {
-    const body = document.body;
-    body.contentEditable = body.contentEditable === 'true' ? 'false' : 'true';
-    document.getElementById('editButton').textContent =
-      body.contentEditable === 'true' ? 'Lock Report' : 'Edit Report';
-  }
-</script>
-`;
-
-  // Updated CSS styles with nicer buttons
-  const styles = `
-  <style>
-    body {
-      font-family: 'Comic Sans MS', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-      line-height: 1.6;
-      color: #374151;
-      max-width: 800px;
-      margin: 0 auto;
-      padding: 20px;
-      background-color: #f8fafc;
-      counter-reset: comment-counter;
-    }
-    
-    header {
-      background: linear-gradient(135deg, #e0f2fe, #dbeafe);
-      border-radius: 16px;
-      padding: 2rem;
-      text-align: center;
-      margin-bottom: 2rem;
-      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-    }
-    
-    h1 {
-      color: #1e40af;
-      font-size: 2.5rem;
-      margin-bottom: 0.5rem;
-    }
-    
-    .meta {
-      color: #6b7280;
-      font-size: 0.95rem;
-    }
-    
-    .scores {
-      display: flex;
-      flex-direction: column;
-      gap: 2rem;
-      margin: 2rem 0;
-    }
-
-    .overall-score {
-      background: linear-gradient(135deg, #e0f2fe, #dbeafe);
-      border-radius: 16px;
-      padding: 1.5rem;
-      text-align: center;
-      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-      max-width: 400px;
-      margin: 0 auto 2rem auto;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 1.5rem;
-    }
-
-    .score-main {
-      display: flex;
-      align-items: center;
-      gap: 1rem;
-    }
-
-    .overall-score .score-value {
-      font-size: 3rem;
-      color: #1e40af;
-      line-height: 1;
-    }
-
-    .overall-score .grade-label {
-      font-size: 1.25rem;
-      color: #6b7280;
-      margin-top: 0.25rem;
-    }
-
-    .overall-score .emoji {
-      font-size: 2.5rem;
-      margin: 0;
-    }
-
-    .overall-progress {
-      flex-grow: 1;
-      max-width: 150px;
-    }
-
-    .analysis-section {
-      margin-top: 3rem;
-    }
-
-    .category-container {
-      background: white;
-      border-radius: 12px;
-      padding: 1.5rem;
-      margin-bottom: 1.5rem;
-      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-    }
-
-    .category-header {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      margin-bottom: 1rem;
-      padding-bottom: 0.5rem;
-      border-bottom: 2px solid #e5e7eb;
-    }
-
-    .category-title {
-      font-size: 1.25rem;
-      font-weight: bold;
-      color: #1e40af;
-      display: flex;
-      align-items: center;
-      gap: 0.5rem;
-    }
-
-    .category-score {
-      font-size: 1.5rem;
-      font-weight: bold;
-      color: #1e40af;
-    }
-    
-    .progress-bar {
-      width: 100%;
-      height: 12px;
-      background-color: #e5e7eb;
-      border-radius: 6px;
-      margin: 0.5rem 0;
-      overflow: hidden;
-    }
-    
-    .progress-fill {
-      height: 100%;
-      transition: width 1s ease-in-out;
-    }
-
-    .essay-content {
-      margin-top: 2rem;
-      background: white;
-      border-radius: 12px;
-      padding: 1.5rem;
-      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-    }
-
-    .comments-section {
-      margin-top: 3rem;
-      background: white;
-      border-radius: 12px;
-      padding: 1.5rem;
-      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-    }
-
-    .comment-box {
-      background-color: #fffbeb;
-      border-left: 4px solid #fbbf24;
-      padding: 15px;
-      margin-bottom: 15px;
-      border-radius: 0 5px 5px 0;
-      position: relative;
-    }
-
-    .comment-box::before {
-      content: "[" counter(comment-counter) "]";
-      position: absolute;
-      top: 15px;
-      right: 15px;
-      color: #2563eb;
-      font-weight: bold;
-      counter-increment: comment-counter;
-    }
-
-    .comment-author {
-      font-weight: bold;
-      margin-bottom: 5px;
-    }
-
-    .comment-content {
-      margin-bottom: 5px;
-    }
-
-    .resolved .comment-content {
-      text-decoration: line-through;
-      color: #888;
-    }
-
-    .encouragement {
-      background: #f0fdf4;
-      border-radius: 12px;
-      padding: 1rem;
-      margin: 2rem 0;
-      text-align: center;
-      color: #166534;
-    }
-
-    /* Highlighted text styles */
-    .essay-comment-mark {
-      background-color: #fef3c7;
-      padding: 0.1em 0;
-      border-bottom: 2px solid #f59e0b;
-      cursor: pointer;
-      position: relative;
-    }
-
-    .comment-number {
-      color: #f59e0b;
-      font-size: 0.75rem;
-      font-weight: 600;
-      text-decoration: none;
-      vertical-align: super;
-      margin-left: 4px;
-    }
-
-    /* Button Styles */
-    .report-btn {
-      display: inline-block;
-      background-color: #1e40af;
-      color: #fff;
-      border: none;
-      border-radius: 8px;
-      padding: 0.75rem 1.25rem;
-      cursor: pointer;
-      font-size: 1rem;
-      margin-right: 0.5rem;
-      margin-bottom: 1rem;
-      transition: background-color 0.2s ease-in-out;
-    }
-
-    .report-btn:hover {
-      background-color: #1d4ed8;
-    }
-
-    /* Hide certain elements in print */
-    .no-print {
-      display: inline-block;
-    }
-    @media print {
-      body {
-        background: white;
-      }
-      .no-print {
-        display: none;
-      }
-    }
-  </style>
-`;
 
   // Build your sections as before
   const scoresSection = `
@@ -574,11 +660,15 @@ export const generateReportHTML = (
 <body id="top" contenteditable="false">
 
   <!-- Buttons (no-print so they don't appear in paper version) -->
-  <button id="editButton" class="report-btn no-print" onclick="toggleEditMode()">
-    Edit Report
+  <button id="editButton" class="no-print-btn" onclick="toggleEditMode()">
+    ✏️ Edit Report
   </button>
-  <button class="report-btn no-print" onclick="window.print()">
-    Print Report
+  <button class="no-print-btn" onclick="window.print()">
+    🖨️ Print Report
+  </button>
+  <!-- Button to recalc bars if teacher manually edits scores -->
+  <button class="no-print-btn" onclick="updateScoreBars()">
+    🔄 Recalculate Score Bars
   </button>
 
   <header>

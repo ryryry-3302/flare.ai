@@ -12,7 +12,8 @@ interface MetricsPanelProps {
   editor: Editor | null;
   initialAnalysis?: RubricScore[];
   onAnalysisComplete?: (analysis: RubricScore[]) => void;
-  comments: CommentData[]; // Add this line
+  comments: CommentData[];
+  wordCount: number; // Accept it from the parent
 }
 
 interface Comment {
@@ -66,12 +67,12 @@ const MetricsPanel: React.FC<MetricsPanelProps> = ({
   editor,
   initialAnalysis = [],
   onAnalysisComplete,
-  comments
+  comments,
+  wordCount
 }) => {
   const [isLoading, setIsLoading] = useState(initialAnalysis.length === 0);
   const [error, setError] = useState<string | null>(null);
   const [analysis, setAnalysis] = useState<RubricScore[]>(initialAnalysis);
-  const [wordCount, setWordCount] = useState(0);
   const [isRegenerating, setIsRegenerating] = useState(false);
 
   const essayTextRef = useRef<string>('');
@@ -153,9 +154,6 @@ const MetricsPanel: React.FC<MetricsPanelProps> = ({
         console.log("Received analysis:", data);
         
         if (data.success && data.analysis) {
-          // Update word count
-          setWordCount(essayTextRef.current.split(/\s+/).filter(Boolean).length);
-          
           // Update analysis and notify parent
           updateAnalysis(data.analysis);
           
