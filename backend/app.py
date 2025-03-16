@@ -284,6 +284,188 @@ def list_essays():
     response = supabase.table("Essays").select("*").execute()
     return jsonify(response.data or [])
 
+# Add this new route for writing style superhero recommendations
+
+@app.route('/api/writing-style', methods=['POST'])
+def analyze_writing_style():
+    """Analyze essay text and recommend a writing style superhero"""
+    logger.info("Received writing style analysis request")
+    
+    try:
+        data = request.json
+        if not data or 'essay' not in data:
+            logger.error("No essay text provided in request")
+            return jsonify({'error': 'No essay text provided'}), 400
+            
+        essay_text = data['essay']
+        logger.info(f"Essay length: {len(essay_text)} characters")
+        
+        if not essay_text or len(essay_text.strip()) < 50:
+            logger.error("Essay text too short")
+            return jsonify({'error': 'Essay text is too short for style analysis'}), 400
+            
+        # Analyze the writing style
+        style_hero = determine_writing_style_hero(essay_text)
+        
+        response_data = {
+            'success': True,
+            'hero': style_hero
+        }
+        
+        logger.info(f"Writing style hero determined: {style_hero['name']}")
+        return jsonify(response_data)
+        
+    except Exception as e:
+        logger.exception("Error analyzing writing style")
+        return jsonify({'error': str(e)}), 500
+
+def determine_writing_style_hero(essay_text):
+    """
+    Analyze essay text and determine which writing style superhero best matches.
+    
+    Returns a dictionary with hero details.
+    """
+    import re
+    from collections import Counter
+    import random
+    
+    # Extract basic text features
+    sentences = re.split(r'[.!?]+', essay_text)
+    sentences = [s.strip() for s in sentences if s.strip()]
+    
+    words = essay_text.lower().split()
+    unique_words = set(words)
+    
+    # Calculate basic metrics
+    avg_sentence_length = sum(len(s.split()) for s in sentences) / max(len(sentences), 1)
+    vocabulary_richness = len(unique_words) / max(len(words), 1)
+    
+    # Look for descriptive words
+    descriptive_words = ['beautiful', 'amazing', 'wonderful', 'incredible', 'stunning', 
+                        'gorgeous', 'fascinating', 'lovely', 'colorful', 'vivid', 'bright',
+                        'brilliant', 'magnificent', 'fantastic', 'extraordinary']
+    
+    descriptive_count = sum(1 for word in words if word in descriptive_words)
+    descriptive_ratio = descriptive_count / max(len(words), 1)
+    
+    # Look for complex sentence structures
+    complex_indicators = [', which', ', where', ', when', ', who', ', because', 
+                        '; however', '; therefore', ', though', ', although', ', yet']
+    
+    complex_count = sum(1 for indicator in complex_indicators if indicator in essay_text.lower())
+    complex_ratio = complex_count / max(len(sentences), 1)
+    
+    # Check for active voice vs passive voice
+    passive_indicators = [' is ', ' are ', ' was ', ' were ', ' be ', ' been ']
+    passive_count = sum(essay_text.lower().count(indicator) for indicator in passive_indicators)
+    passive_ratio = passive_count / max(len(sentences), 1)
+    
+    # Define our superheroes
+    heroes = [
+        {
+            "name": "Captain Clarity",
+            "description": "The master of clear, concise communication! You have a superpower for explaining complex ideas in simple terms.",
+            "strengths": ["Clear communication", "Concise expression", "Logical organization"],
+            "tips": [
+                "Keep sharpening your clarity by using concrete examples",
+                "Try adding more sophisticated transitions between ideas",
+                "Challenge yourself with more complex vocabulary while maintaining clarity"
+            ],
+            "icon": "🔍"
+        },
+        {
+            "name": "Professor Prose",
+            "description": "The eloquent wordsmith! You weave complex sentences and rich vocabulary into sophisticated prose.",
+            "strengths": ["Rich vocabulary", "Complex sentence structures", "Elegant expression"],
+            "tips": [
+                "Ensure your sophisticated style doesn't sacrifice clarity",
+                "Vary sentence length to create rhythm in your writing",
+                "Continue expanding your vocabulary in your specific domain"
+            ],
+            "icon": "📚"
+        },
+        {
+            "name": "Metaphor Master",
+            "description": "The champion of creativity! You paint vivid pictures with descriptive language and imaginative comparisons.",
+            "strengths": ["Creative expression", "Vivid descriptions", "Engaging imagery"],
+            "tips": [
+                "Ensure metaphors enhance rather than obscure your message",
+                "Practice using similes and analogies to explain complex concepts",
+                "Balance creativity with structure for maximum impact"
+            ],
+            "icon": "🎨"
+        },
+        {
+            "name": "Logic Launcher",
+            "description": "The analytical powerhouse! You construct well-reasoned arguments with strong evidence and logical flow.",
+            "strengths": ["Logical reasoning", "Evidence-based writing", "Structured arguments"],
+            "tips": [
+                "Consider adding more emotional appeal to balance your logical approach",
+                "Use stories and examples to make your logical points more memorable",
+                "Practice varying your sentence structure for better engagement"
+            ],
+            "icon": "⚖️"
+        },
+        {
+            "name": "Voice Virtuoso",
+            "description": "The personality projector! Your authentic voice shines through in your writing, creating a strong connection with readers.",
+            "strengths": ["Distinctive voice", "Authentic expression", "Reader engagement"],
+            "tips": [
+                "Maintain your voice while adapting to different writing contexts",
+                "Continue developing technical skills to support your strong voice",
+                "Study writers you admire to add new dimensions to your voice"
+            ],
+            "icon": "🎭"
+        }
+    ]
+    
+    # Determine hero based on text features
+    scores = {
+        "Captain Clarity": 0,
+        "Professor Prose": 0,
+        "Metaphor Master": 0,
+        "Logic Launcher": 0,
+        "Voice Virtuoso": 0
+    }
+    
+    # Captain Clarity tends to have medium-length sentences, good organization
+    if 12 <= avg_sentence_length <= 20:
+        scores["Captain Clarity"] += 2
+    
+    # Professor Prose uses complex sentences and rich vocabulary
+    if avg_sentence_length > 20:
+        scores["Professor Prose"] += 2
+    if vocabulary_richness > 0.6:
+        scores["Professor Prose"] += 2
+    if complex_ratio > 0.3:
+        scores["Professor Prose"] += 1
+        
+    # Metaphor Master uses descriptive language
+    if descriptive_ratio > 0.05:
+        scores["Metaphor Master"] += 3
+    
+    # Logic Launcher uses structured arguments, often with specific connectors
+    if any(x in essay_text.lower() for x in ['therefore', 'thus', 'consequently', 'as a result']):
+        scores["Logic Launcher"] += 2
+    if any(x in essay_text.lower() for x in ['first', 'second', 'third', 'finally', 'in conclusion']):
+        scores["Logic Launcher"] += 2
+        
+    # Voice Virtuoso has a distinctive voice, often with first person or direct address
+    if essay_text.lower().count("i ") > len(sentences) * 0.2:
+        scores["Voice Virtuoso"] += 2
+    if essay_text.lower().count("you ") > len(sentences) * 0.1:
+        scores["Voice Virtuoso"] += 2
+        
+    # Get the hero with highest score (or random among ties)
+    max_score = max(scores.values())
+    top_heroes = [hero for hero, score in scores.items() if score == max_score]
+    chosen_hero_name = random.choice(top_heroes)
+    
+    # Find the full hero data
+    chosen_hero = next(hero for hero in heroes if hero["name"] == chosen_hero_name)
+    
+    return chosen_hero
+
 if __name__ == '__main__':
     logger.info("Starting Flask server")
     app.run(debug=True, host='0.0.0.0', port=5000, threaded=True)
