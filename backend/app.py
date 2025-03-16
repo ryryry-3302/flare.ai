@@ -581,19 +581,5 @@ def student_progress():
 
 if __name__ == '__main__':
     logger.info("Starting Flask server")
-
-    with app.app_context():  # Ensure proper application context
-        response = student_progress()  # Call the function
-       
-        # Extract the JSON response properly
-        if isinstance(response, tuple):  # Handle (response, status_code) case
-            response, _ = response
-        
-        if isinstance(response, Response):  # Flask Response object case
-            response_data = response.get_json()  # Get JSON data
-            print(json.dumps(response_data, indent=2))  # Pretty print for readability
-        else:
-            print("Unexpected response format:", response)
-
     app.run(debug=True, host='0.0.0.0', port=5000, threaded=True)
     print(os.environ.get('GEMINI_API_KEY'))
