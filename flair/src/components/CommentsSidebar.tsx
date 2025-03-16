@@ -10,6 +10,7 @@ export interface CommentData {
   highlightedText?: string;
   resolved?: boolean;
   timestamp: number;
+  selection?: { from: number; to: number };
 }
 
 interface CommentsSidebarProps {
@@ -68,7 +69,8 @@ const CommentsSidebar: React.FC<CommentsSidebarProps> = ({
       content: newComment,
       highlightedText: selectedText,
       resolved: false,
-      timestamp: Date.now()
+      timestamp: Date.now(),
+      selection: { from, to }
     };
     
     setComments([...comments, comment]);
@@ -117,10 +119,55 @@ const CommentsSidebar: React.FC<CommentsSidebarProps> = ({
     setActiveCommentId(comment.id);
   };
 
+  const removeAllComments = () => {
+    // First, remove all comment marks from the text
+    if (editor) {
+      editor.state.doc.descendants((node, pos) => {
+        const marks = node.marks.filter(mark => 
+          mark.type.name === 'comment'
+        );
+        
+        if (marks.length && node.isText) {
+          editor.chain()
+            .setTextSelection({ from: pos, to: pos + node.nodeSize })
+            .unsetComment()
+            .run();
+        }
+        
+        return true;
+      });
+    }
+    
+    // Then clear the comments array
+    setComments([]);
+    setActiveCommentId(null);
+  };
+
+  // Add a confirmation dialog to prevent accidental deletions
+  const handleRemoveAll = () => {
+    if (window.confirm('Are you sure you want to remove all comments? This action cannot be undone.')) {
+      removeAllComments();
+    }
+  };
+
   return (
     <div className="border-l border-slate-200 bg-white h-full overflow-y-auto">
       <div className="p-3 border-b border-slate-200">
-        <h3 className="text-lg font-semibold mb-2">Comments</h3>
+        <div className="flex justify-between items-center mb-2">
+          <h3 className="text-lg font-semibold">Comments</h3>
+          
+          {/* Remove All button */}
+          {comments.length > 0 && (
+            <button
+              onClick={handleRemoveAll}
+              className="text-xs px-2 py-1 bg-red-50 text-red-600 rounded hover:bg-red-100 transition-colors flex items-center"
+              title="Remove all comments"
+            >
+              <FaTimes className="mr-1" /> Remove All
+            </button>
+          )}
+        </div>
+        
         <div className="flex">
           <textarea
             className="flex-grow p-2 border border-slate-300 rounded-l text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
@@ -141,7 +188,7 @@ const CommentsSidebar: React.FC<CommentsSidebarProps> = ({
           Select text in the document before adding a comment
         </p>
       </div>
-
+      
       <div className="p-2">
         {comments.length === 0 ? (
           <div className="text-center py-4 text-slate-500">
@@ -161,18 +208,20 @@ const CommentsSidebar: React.FC<CommentsSidebarProps> = ({
               >
                 <div className="flex justify-between items-start mb-1">
                   <div className="font-medium text-sm flex items-center">
-                    <FaComment className="mr-1 text-blue-500" /> {comment.author}
+                    <FaComment className="mr-1 text-blue-500" />
                   </div>
                   <div className="text-xs text-slate-500">
-                    {new Date(comment.timestamp).toLocaleTimeString([], { 
+                    {new Date(comment.timestamp).toLocaleTimeString([], {
                       hour: '2-digit', 
                       minute: '2-digit' 
                     })}
                   </div>
                 </div>
+                
                 <p className={`text-sm mb-2 ${comment.resolved ? 'text-slate-500 line-through' : ''}`}>
                   {comment.content}
                 </p>
+                
                 <div className="flex justify-end space-x-1">
                   {!comment.resolved && (
                     <button
