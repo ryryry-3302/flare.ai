@@ -1,0 +1,5 @@
+say("Hello there, how's it going?")
+loop:
+    res = talk("Have a conversation with the user and ask about their day", True)
+until "user says theyre bored":
+    say("Goodbye!")

@@ -1,0 +1,21 @@
+state = {}
+meta_prompt = "You're a writing assistant that checks for grammar and spelling errors in text."
+
+say("Please provide the text you would like to check for grammatical and spelling errors.")
+
+loop:
+    response = talk("Waiting for user to provide text.", True)
+until "User provides valid text":
+    user_text = response.ask(question="Extract the user's text.", example={"text": "This is a sample text."})
+    if user_text:
+        state["text"] = user_text
+    else:
+        print("The text could not be understood. Please try again.")
+
+# Perform the current task with the provided text
+say("Analyzing the provided text for errors...")
+
+errors = state["text"].ask(question="Analyze the text and find all grammar, punctuation, and spelling errors. Return a JSON object with three lists of equal length: 'words' (the incorrect words), 'starting_index' (the position of each word in the text), and 'correctedWords' (the corrected versions).", example={"words": ["word1", "word2"], "starting_index": [0, 23], "correctedWords": ["correctedword1", "correctedword2"]})
+
+say("I found the following grammar and spelling errors:")
+say(f"{errors}", exact=True)

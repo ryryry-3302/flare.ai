@@ -1,0 +1,3 @@
+brainbase_labs
+python-dotenv 
+aiohttp
