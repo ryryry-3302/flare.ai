@@ -383,7 +383,7 @@ def determine_writing_style_hero(essay_text):
     heroes = [
         {
             "name": "Captain Clarity",
-            "description": "The master of clear, concise communication! You have a superpower for explaining complex ideas in simple terms.",
+            "description": "The master of crystal-clear communication! With your laser-focus powers, you can explain the most complicated ideas so anyone can understand them.",
             "strengths": ["Clear communication", "Concise expression", "Logical organization"],
             "tips": [
                 "Keep sharpening your clarity by using concrete examples",
@@ -393,8 +393,8 @@ def determine_writing_style_hero(essay_text):
             "icon": "🔍"
         },
         {
-            "name": "Professor Prose",
-            "description": "The eloquent wordsmith! You weave complex sentences and rich vocabulary into sophisticated prose.",
+            "name": "Vocabulary Vanguard",
+            "description": "The word wizard extraordinaire! You command an army of impressive words and craft sentences that flow like magic spells.",
             "strengths": ["Rich vocabulary", "Complex sentence structures", "Elegant expression"],
             "tips": [
                 "Ensure your sophisticated style doesn't sacrifice clarity",
@@ -404,8 +404,8 @@ def determine_writing_style_hero(essay_text):
             "icon": "📚"
         },
         {
-            "name": "Metaphor Master",
-            "description": "The champion of creativity! You paint vivid pictures with descriptive language and imaginative comparisons.",
+            "name": "Imagination Igniter",
+            "description": "The creative flame-thrower! Your words paint vivid mind-pictures that transport readers to new worlds and fresh perspectives.",
             "strengths": ["Creative expression", "Vivid descriptions", "Engaging imagery"],
             "tips": [
                 "Ensure metaphors enhance rather than obscure your message",
@@ -415,8 +415,8 @@ def determine_writing_style_hero(essay_text):
             "icon": "🎨"
         },
         {
-            "name": "Logic Launcher",
-            "description": "The analytical powerhouse! You construct well-reasoned arguments with strong evidence and logical flow.",
+            "name": "Reason Ranger",
+            "description": "The thought detective! You build rock-solid arguments that stand strong against any challenge, using evidence and clever thinking.",
             "strengths": ["Logical reasoning", "Evidence-based writing", "Structured arguments"],
             "tips": [
                 "Consider adding more emotional appeal to balance your logical approach",
@@ -426,8 +426,8 @@ def determine_writing_style_hero(essay_text):
             "icon": "⚖️"
         },
         {
-            "name": "Voice Virtuoso",
-            "description": "The personality projector! Your authentic voice shines through in your writing, creating a strong connection with readers.",
+            "name": "Authentic Avenger",
+            "description": "The genuine connection creator! Your true personality shines through your words, making readers feel like they've made a new friend.",
             "strengths": ["Distinctive voice", "Authentic expression", "Reader engagement"],
             "tips": [
                 "Maintain your voice while adapting to different writing contexts",
@@ -436,7 +436,7 @@ def determine_writing_style_hero(essay_text):
             ],
             "icon": "🎭"
         }
-    ]
+]
     
     # Determine hero based on text features
     scores = {
