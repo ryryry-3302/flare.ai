@@ -90,6 +90,7 @@ const Editor: React.FC = () => {
   // Loading states
   const [isLoadingProgress, setIsLoadingProgress] = useState(false);
   const [isGrammarLoading, setIsGrammarLoading] = useState(false);
+  const [isGeneratingReport, setIsGeneratingReport] = useState(false);
 
   // Tiptap editor setup
   const editor = useEditor({
@@ -232,45 +233,54 @@ const Editor: React.FC = () => {
   const handleGenerateReport = async () => {
     if (!editor) return;
     
-    // If we don't have student progress yet, try to fetch it
-    if (!studentProgress) {
-      try {
-        await fetchStudentProgress();
-      } catch (error) {
-        console.error('Error fetching student progress for report:', error);
-        // Continue generating report even without student progress
-      }
-    }
-
-    // If we don't have a writing hero yet, try to fetch one
-    if (!currentWritingHero) {
-      try {
-        const essayText = editor.getText();
-        
-        if (essayText.length >= 50) {
-          const response = await axios.post('http://localhost:5000/api/writing-style', {
-            essay: essayText
-          });
-          
-          if (response.data.success && response.data.hero) {
-            setCurrentWritingHero(response.data.hero);
-          }
+    setIsGeneratingReport(true); // Start loading state
+    
+    try {
+      // If we don't have student progress yet, try to fetch it
+      if (!studentProgress) {
+        try {
+          await fetchStudentProgress();
+        } catch (error) {
+          console.error('Error fetching student progress for report:', error);
+          // Continue generating report even without student progress
         }
-      } catch (error) {
-        console.error('Error fetching writing style hero for report:', error);
-        // Continue generating report even if we can't get the writing style
       }
+
+      // If we don't have a writing hero yet, try to fetch one
+      if (!currentWritingHero) {
+        try {
+          const essayText = editor.getText();
+          
+          if (essayText.length >= 50) {
+            const response = await axios.post('http://localhost:5000/api/writing-style', {
+              essay: essayText
+            });
+            
+            if (response.data.success && response.data.hero) {
+              setCurrentWritingHero(response.data.hero);
+            }
+          }
+        } catch (error) {
+          console.error('Error fetching writing style hero for report:', error);
+          // Continue generating report even if we can't get the writing style
+        }
+      }
+    
+      // Generate the report with all available data including the writing hero
+      generateReport({
+        essayContent: editor.getHTML(),
+        comments,
+        wordCount,
+        analysis: currentAnalysis,
+        writingHero: currentWritingHero || undefined, // Pass the writing hero if available
+        studentProgress: studentProgress || undefined
+      });
+    } catch (error) {
+      console.error('Error generating report:', error);
+      alert('There was an error generating your report. Please try again.');
+    } finally {
+      setIsGeneratingReport(false); // End loading state
     }
-  
-    // Generate the report with all available data including the writing hero
-    generateReport({
-      essayContent: editor.getHTML(),
-      comments,
-      wordCount,
-      analysis: currentAnalysis,
-      writingHero: currentWritingHero || undefined, // Pass the writing hero if available
-      studentProgress: studentProgress || undefined
-    });
   };
 
   // Add this function to fetch essays from Supabase
@@ -487,17 +497,7 @@ const Editor: React.FC = () => {
               </>
             )}
           </button>
-
-          {/* Generate Report */}
-          <button
-            onClick={handleGenerateReport}
-            className="flex items-center gap-1 px-3 py-1 text-sm font-medium rounded transition-colors bg-blue-600 text-white hover:bg-blue-700"
-          >
-            <FaFileAlt className="w-4 h-4" />
-            Generate Report
-          </button>
-          
-          {/* Generate / View Assignment */}
+                      {/* Generate / View Assignment */}
           <button
             onClick={isLoadingProgress ? undefined : (assignmentPdfBase64 ? openAssignmentPdf : fetchStudentProgress)}
             disabled={isLoadingProgress}
@@ -527,6 +527,28 @@ const Editor: React.FC = () => {
               </>
             )}
           </button>
+          {/* Generate Report */}
+          <button
+            onClick={isGeneratingReport ? undefined : handleGenerateReport}
+            disabled={isGeneratingReport}
+            className={`flex items-center gap-1 px-3 py-1 text-sm font-medium rounded transition-colors text-white
+              ${isGeneratingReport ? 'bg-blue-400 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700'}
+            `}
+          >
+            {isGeneratingReport ? (
+              <span className="flex items-center">
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-1"></div>
+                Generating...
+              </span>
+            ) : (
+              <>
+                <FaFileAlt className="w-4 h-4" />
+                Generate Report
+              </>
+            )}
+          </button>
+          
+
         </div>
       </div>
 
