@@ -1,6 +1,14 @@
 // src/EditorStats.tsx
+
 import React, { useEffect, useState } from 'react';
-import { FaBookOpen, FaCheck, FaQuoteRight, FaChartLine } from 'react-icons/fa';
+import { 
+  FaBookOpen, 
+  FaCheck, 
+  FaQuoteRight, 
+  FaChartLine,
+  FaStopwatch,    // NEW icon for longest sentence
+  FaFont          // NEW icon for longest word
+} from 'react-icons/fa';
 import { motion } from 'framer-motion';
 import { Editor } from '@tiptap/react';
 
@@ -42,7 +50,11 @@ const EditorStats: React.FC<EditorStatsProps> = ({ wordCount, editor }) => {
   const [wordLengthDistribution, setWordLengthDistribution] = useState<number[]>([]);
   const [mostFrequentWords, setMostFrequentWords] = useState<{ word: string; count: number }[]>([]);
 
-  // Common words to filter out
+  // NEW states
+  const [longestSentence, setLongestSentence] = useState(0);
+  const [longestWord, setLongestWord] = useState('');
+
+  // Common words to filter out from frequency
   const commonWords = ['the', 'and', 'that', 'have', 'for', 'not', 'you', 'with', 'this', 'but'];
 
   useEffect(() => {
@@ -99,9 +111,29 @@ const EditorStats: React.FC<EditorStatsProps> = ({ wordCount, editor }) => {
       .map(([w, c]) => ({ word: w, count: c }));
     setMostFrequentWords(sortedWords);
 
+    // ----- 5) Longest Sentence (NEW) -----
+    let maxSentenceWords = 0;
+    sentences.forEach(s => {
+      const scount = s.trim().split(/\s+/).filter(Boolean).length;
+      if (scount > maxSentenceWords) {
+        maxSentenceWords = scount;
+      }
+    });
+    setLongestSentence(maxSentenceWords);
+
+    // ----- 6) Longest Word (NEW) -----
+    let lw = '';
+    words.forEach(w => {
+      const cleanW = w.replace(/[^\w]/g, '');
+      if (cleanW.length > lw.length) {
+        lw = cleanW;
+      }
+    });
+    setLongestWord(lw);
+
   }, [editor, wordCount]);
 
-  /** More nuanced reading level via Flesch–Kincaid Grade Level */
+  /** Flesch–Kincaid Grade Level => a reading level category */
   const getReadingLevel = () => {
     if (!editor) return 'Elementary';
 
@@ -121,13 +153,13 @@ const EditorStats: React.FC<EditorStatsProps> = ({ wordCount, editor }) => {
       syllableTotal += countSyllablesInWord(w);
     }
 
-    // Flesch–Kincaid Grade Level
+    // Flesch–Kincaid Grade calculation
     const fkGrade =
       0.39 * (wordCountLocal / sentenceCountLocal) +
       11.8 * (syllableTotal / wordCountLocal) -
       15.59;
 
-    // Map numeric grade level to your categories
+    // Map numeric grade level to categories
     if (fkGrade >= 16) {
       return 'Graduate';
     } else if (fkGrade >= 13) {
@@ -141,6 +173,7 @@ const EditorStats: React.FC<EditorStatsProps> = ({ wordCount, editor }) => {
   };
 
   const readingLevel = getReadingLevel();
+
   return (
     <motion.div 
       initial={{ opacity: 0, x: 50 }}
@@ -150,8 +183,8 @@ const EditorStats: React.FC<EditorStatsProps> = ({ wordCount, editor }) => {
     >
       <h3 className="text-lg font-semibold mb-4 text-slate-800">Live Essay Insights</h3>
       
-      {/* Key stats */}
-      <div className="grid grid-cols-2 gap-3 mb-6">
+      {/* Key stats: now 6 items in a 3-col grid */}
+      <div className="grid grid-cols-3 gap-3 mb-6">
         {/* Word Count */}
         <motion.div 
           initial={{ y: 20, opacity: 0 }}
@@ -167,7 +200,7 @@ const EditorStats: React.FC<EditorStatsProps> = ({ wordCount, editor }) => {
         <motion.div 
           initial={{ y: 20, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
-          transition={{ delay: 0.2 }}
+          transition={{ delay: 0.15 }}
           className="bg-white p-3 rounded-md shadow-sm"
         >
           <div className="text-xs text-slate-500 uppercase font-semibold">Sentences</div>
@@ -178,7 +211,7 @@ const EditorStats: React.FC<EditorStatsProps> = ({ wordCount, editor }) => {
         <motion.div 
           initial={{ y: 20, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
-          transition={{ delay: 0.3 }}
+          transition={{ delay: 0.2 }}
           className="bg-white p-3 rounded-md shadow-sm"
         >
           <div className="text-xs text-slate-500 uppercase font-semibold">Paragraphs</div>
@@ -189,11 +222,41 @@ const EditorStats: React.FC<EditorStatsProps> = ({ wordCount, editor }) => {
         <motion.div 
           initial={{ y: 20, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
-          transition={{ delay: 0.4 }}
+          transition={{ delay: 0.25 }}
           className="bg-white p-3 rounded-md shadow-sm"
         >
           <div className="text-xs text-slate-500 uppercase font-semibold">Reading Level</div>
           <div className="text-lg font-bold">{readingLevel}</div>
+        </motion.div>
+
+        {/* Longest Sentence (NEW) */}
+        <motion.div 
+          initial={{ y: 20, opacity: 0 }}
+          animate={{ y: 0, opacity: 1 }}
+          transition={{ delay: 0.3 }}
+          className="bg-white p-3 rounded-md shadow-sm"
+        >
+          <div className="text-xs text-slate-500 uppercase font-semibold flex items-center gap-1">
+            <FaStopwatch className="text-purple-500" />
+            Longest Sentence
+          </div>
+          <div className="text-2xl font-bold">{longestSentence || 0}</div>
+        </motion.div>
+
+        {/* Longest Word (NEW) */}
+        <motion.div 
+          initial={{ y: 20, opacity: 0 }}
+          animate={{ y: 0, opacity: 1 }}
+          transition={{ delay: 0.35 }}
+          className="bg-white p-3 rounded-md shadow-sm"
+        >
+          <div className="text-xs text-slate-500 uppercase font-semibold flex items-center gap-1">
+            <FaFont className="text-pink-500" />
+            Longest Word
+          </div>
+          <div className="text-lg font-bold break-all">
+            {longestWord || '—'}
+          </div>
         </motion.div>
       </div>
       
@@ -201,7 +264,7 @@ const EditorStats: React.FC<EditorStatsProps> = ({ wordCount, editor }) => {
       <motion.div 
         initial={{ y: 20, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
-        transition={{ delay: 0.5 }}
+        transition={{ delay: 0.45 }}
         className="bg-white p-3 rounded-md shadow-sm mb-4"
       >
         <div className="flex items-center gap-2 mb-2">
@@ -228,7 +291,7 @@ const EditorStats: React.FC<EditorStatsProps> = ({ wordCount, editor }) => {
       <motion.div 
         initial={{ y: 20, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
-        transition={{ delay: 0.6 }}
+        transition={{ delay: 0.5 }}
         className="bg-white p-3 rounded-md shadow-sm"
       >
         <div className="flex items-center gap-2 mb-2">

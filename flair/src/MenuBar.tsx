@@ -98,7 +98,31 @@ const MenuBar: React.FC<MenuBarProps> = ({ editor }) => {
 
   return (
     <>
-      <div className="mb-4 p-2 bg-white border border-slate-200 rounded-md shadow-sm flex flex-wrap items-center gap-1 relative">
+      <div className="mb-1 p-2 bg-white border border-slate-200 rounded-md shadow-sm flex flex-wrap items-center gap-1 relative">
+        {/* Upload button - moved to the far left */}
+        <div className="flex items-center gap-1 mr-2 border-r border-slate-200 pr-2">
+          <Tooltip.Provider>
+            <Tooltip.Root>
+              <Tooltip.Trigger asChild>
+                <button
+                  type="button"
+                  onClick={() => setShowQRCodeModal(true)}
+                  className="p-2 rounded hover:bg-slate-100 transition-colors text-slate-700 flex items-center gap-1"
+                >
+                  <FaUpload className="w-4 h-4" />
+                  <span className="text-sm">Upload File</span>
+                </button>
+              </Tooltip.Trigger>
+              <Tooltip.Portal>
+                <Tooltip.Content className="bg-slate-800 text-white px-2 py-1 rounded text-xs">
+                  Upload Photo/PDF
+                  <Tooltip.Arrow className="fill-slate-800" />
+                </Tooltip.Content>
+              </Tooltip.Portal>
+            </Tooltip.Root>
+          </Tooltip.Provider>
+        </div>
+
         {/* Text formatting */}
         <div className="flex items-center gap-1 mr-2 border-r border-slate-200 pr-2">
           {/* Bold */}
@@ -328,6 +352,30 @@ const MenuBar: React.FC<MenuBarProps> = ({ editor }) => {
                 </Popover.Content>
               </Popover.Portal>
             </Popover.Root>
+            
+            {/* Clear Formatting Button - moved after highlighter */}
+            <Tooltip.Provider>
+              <Tooltip.Root>
+                <Tooltip.Trigger asChild>
+                  <button
+                    type="button"
+                    onClick={() => editor.chain().focus().clearNodes().unsetAllMarks().run()}
+                    className="p-2 rounded hover:bg-slate-100 transition-colors"
+                  >
+                    <FaEraser className="w-4 h-4" />
+                  </button>
+                </Tooltip.Trigger>
+                <Tooltip.Portal>
+                  <Tooltip.Content 
+                    className="bg-slate-800 text-white px-2 py-1 rounded text-xs flex flex-col items-center"
+                    sideOffset={5}
+                  >
+                    <div>Clear Formatting</div>
+                    <Tooltip.Arrow className="fill-slate-800" />
+                  </Tooltip.Content>
+                </Tooltip.Portal>
+              </Tooltip.Root>
+            </Tooltip.Provider>
           </div>
         </div>
 
@@ -442,29 +490,6 @@ const MenuBar: React.FC<MenuBarProps> = ({ editor }) => {
           </Tooltip.Provider>
         </div>
 
-        {/* Upload button */}
-        <div className="flex items-center gap-1">
-          <Tooltip.Provider>
-            <Tooltip.Root>
-              <Tooltip.Trigger asChild>
-                <button
-                  type="button"
-                  onClick={() => setShowQRCodeModal(true)}
-                  className="p-2 rounded hover:bg-slate-100 transition-colors text-slate-700"
-                >
-                  <FaUpload className="w-4 h-4" />
-                </button>
-              </Tooltip.Trigger>
-              <Tooltip.Portal>
-                <Tooltip.Content className="bg-slate-800 text-white px-2 py-1 rounded text-xs">
-                  Upload Photo/PDF
-                  <Tooltip.Arrow className="fill-slate-800" />
-                </Tooltip.Content>
-              </Tooltip.Portal>
-            </Tooltip.Root>
-          </Tooltip.Provider>
-        </div>
-
         {/* Undo and Redo Buttons */}
         <Tooltip.Provider>
           <Tooltip.Root>
@@ -506,30 +531,6 @@ const MenuBar: React.FC<MenuBarProps> = ({ editor }) => {
                 sideOffset={5}
               >
                 <div>Redo</div>
-                <Tooltip.Arrow className="fill-slate-800" />
-              </Tooltip.Content>
-            </Tooltip.Portal>
-          </Tooltip.Root>
-        </Tooltip.Provider>
-
-        {/* Clear Formatting Button */}
-        <Tooltip.Provider>
-          <Tooltip.Root>
-            <Tooltip.Trigger asChild>
-              <button
-                type="button"
-                onClick={() => editor.chain().focus().clearNodes().unsetAllMarks().run()}
-                className="p-2 rounded hover:bg-slate-100 transition-colors"
-              >
-                <FaEraser className="w-4 h-4" />
-              </button>
-            </Tooltip.Trigger>
-            <Tooltip.Portal>
-              <Tooltip.Content 
-                className="bg-slate-800 text-white px-2 py-1 rounded text-xs flex flex-col items-center"
-                sideOffset={5}
-              >
-                <div>Clear Formatting</div>
                 <Tooltip.Arrow className="fill-slate-800" />
               </Tooltip.Content>
             </Tooltip.Portal>
