@@ -29,6 +29,7 @@ def grade_essay(essay):
             The essay is provided in the 'essay' variable and the rubrics are provided in the 'rubrics' variable.
             Please read the essay and rubrics carefully and provide a detailed evaluation of the essay based on the rubrics.
             You should provide a score for each rubric and a detailed explanation for each score.
+            For comments, limit to a maximum of 3 comments per rubric category.
             
             Scores should be between 1 and 5, where:
             5 = Excellent

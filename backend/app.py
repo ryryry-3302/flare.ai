@@ -436,44 +436,44 @@ def determine_writing_style_hero(essay_text):
             ],
             "icon": "🎭"
         }
-]
+    ]
     
     # Determine hero based on text features
     scores = {
         "Captain Clarity": 0,
-        "Professor Prose": 0,
-        "Metaphor Master": 0,
-        "Logic Launcher": 0,
-        "Voice Virtuoso": 0
+        "Vocabulary Vanguard": 0, # Changed from "Professor Prose"
+        "Imagination Igniter": 0, # Changed from "Metaphor Master"
+        "Reason Ranger": 0,       # Changed from "Logic Launcher"
+        "Authentic Avenger": 0    # Changed from "Voice Virtuoso"
     }
     
     # Captain Clarity tends to have medium-length sentences, good organization
     if 12 <= avg_sentence_length <= 20:
         scores["Captain Clarity"] += 2
     
-    # Professor Prose uses complex sentences and rich vocabulary
+    # Vocabulary Vanguard uses complex sentences and rich vocabulary
     if avg_sentence_length > 20:
-        scores["Professor Prose"] += 2
+        scores["Vocabulary Vanguard"] += 2
     if vocabulary_richness > 0.6:
-        scores["Professor Prose"] += 2
+        scores["Vocabulary Vanguard"] += 2
     if complex_ratio > 0.3:
-        scores["Professor Prose"] += 1
+        scores["Vocabulary Vanguard"] += 1
         
-    # Metaphor Master uses descriptive language
+    # Imagination Igniter uses descriptive language
     if descriptive_ratio > 0.05:
-        scores["Metaphor Master"] += 3
+        scores["Imagination Igniter"] += 3
     
-    # Logic Launcher uses structured arguments, often with specific connectors
+    # Reason Ranger uses structured arguments, often with specific connectors
     if any(x in essay_text.lower() for x in ['therefore', 'thus', 'consequently', 'as a result']):
-        scores["Logic Launcher"] += 2
+        scores["Reason Ranger"] += 2
     if any(x in essay_text.lower() for x in ['first', 'second', 'third', 'finally', 'in conclusion']):
-        scores["Logic Launcher"] += 2
+        scores["Reason Ranger"] += 2
         
-    # Voice Virtuoso has a distinctive voice, often with first person or direct address
+    # Authentic Avenger has a distinctive voice, often with first person or direct address
     if essay_text.lower().count("i ") > len(sentences) * 0.2:
-        scores["Voice Virtuoso"] += 2
+        scores["Authentic Avenger"] += 2
     if essay_text.lower().count("you ") > len(sentences) * 0.1:
-        scores["Voice Virtuoso"] += 2
+        scores["Authentic Avenger"] += 2
         
     # Get the hero with highest score (or random among ties)
     max_score = max(scores.values())
@@ -581,18 +581,4 @@ def student_progress():
 
 if __name__ == '__main__':
     logger.info("Starting Flask server")
-
-    with app.app_context():  # Ensure proper application context
-        response = student_progress()  # Call the function
-       
-        # Extract the JSON response properly
-        if isinstance(response, tuple):  # Handle (response, status_code) case
-            response, _ = response
-        
-        if isinstance(response, Response):  # Flask Response object case
-            response_data = response.get_json()  # Get JSON data
-            print(json.dumps(response_data, indent=2))  # Pretty print for readability
-        else:
-            print("Unexpected response format:", response)
-
     app.run(debug=True, host='0.0.0.0', port=5000, threaded=True)
