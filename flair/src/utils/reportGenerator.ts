@@ -12,15 +12,25 @@ export interface RubricScore {
   }[];
 }
 
+// New interface for the writing style hero
+export interface WritingHero {
+  name: string;
+  description: string;
+  strengths: string[];
+  tips: string[];
+  icon: string;
+}
+
 interface ReportGeneratorOptions {
   essayContent: string;
   comments: CommentData[]; // Update to use CommentData type
   wordCount: number;
   analysis?: RubricScore[]; // Optional to maintain backward compatibility
+  writingHero?: WritingHero; // Add the writing hero to options
 }
 
 export const generateReport = (options: ReportGeneratorOptions): Window | null => {
-  let { essayContent, comments, wordCount, analysis = [] } = options;
+  let { essayContent, comments, wordCount, analysis = [], writingHero } = options;
 
   // Provide default analysis if none is provided
   if (!analysis?.length) {
@@ -164,7 +174,14 @@ export const generateReport = (options: ReportGeneratorOptions): Window | null =
   }
 
   // Generate the HTML for report
-  const reportHTML = generateReportHTML(essayContent, markedEssayContent, comments, analysis, wordCount);
+  const reportHTML = generateReportHTML(
+    essayContent, 
+    markedEssayContent, 
+    comments, 
+    analysis, 
+    wordCount,
+    writingHero // Pass the writing hero to the HTML generator
+  );
 
   // Write the report content to the new window
   reportWindow.document.write(reportHTML);
@@ -490,7 +507,8 @@ export const generateReportHTML = (
   markedEssayContent: string, 
   comments: CommentData[], 
   analysis: RubricScore[],
-  wordCount: number
+  wordCount: number,
+  writingHero?: WritingHero // Add the writingHero parameter
 ): string => {
   const today = new Date();
   const dateString = today.toLocaleDateString('en-US', {
@@ -567,6 +585,40 @@ export const generateReportHTML = (
     }
   `;
 
+  // Build the writing style hero section
+  const writingHeroSection = writingHero 
+    ? `
+      <div class="section writing-hero-section" style="margin-top: 3rem; background: linear-gradient(135deg, #f0f9ff, #e0f2fe); border-radius: 12px; padding: 1.5rem; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);">
+        <h2>Your Writing Style Superhero</h2>
+        
+        <div class="hero-container" style="display: flex; align-items: flex-start; gap: 1.5rem; margin-top: 1rem;">
+          <div class="hero-icon" style="font-size: 3.5rem; line-height: 1; background-color: white; border-radius: 50%; width: 70px; height: 70px; display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+            ${writingHero.icon}
+          </div>
+          
+          <div class="hero-content" style="flex-grow: 1;">
+            <h3 style="color: #1e40af; margin-top: 0; margin-bottom: 0.75rem; font-size: 1.5rem;">${writingHero.name}</h3>
+            <p style="margin-top: 0; margin-bottom: 1.25rem;">${writingHero.description}</p>
+            
+            <div class="hero-strengths" style="background-color: white; padding: 1rem; border-radius: 8px; margin-bottom: 1rem;">
+              <h4 style="margin-top: 0; margin-bottom: 0.5rem; color: #1e40af;">Writing Strengths:</h4>
+              <ul style="margin: 0; padding-left: 1.5rem;">
+                ${writingHero.strengths.map(strength => `<li>${strength}</li>`).join('')}
+              </ul>
+            </div>
+            
+            <div class="hero-tips" style="background-color: white; padding: 1rem; border-radius: 8px;">
+              <h4 style="margin-top: 0; margin-bottom: 0.5rem; color: #1e40af;">Tips to Improve:</h4>
+              <ul style="margin: 0; padding-left: 1.5rem;">
+                ${writingHero.tips.map(tip => `<li>${tip}</li>`).join('')}
+              </ul>
+            </div>
+          </div>
+        </div>
+      </div>
+    `
+    : '';
+
   // Build the teacher comments section
   const commentsSection = `
     ${
@@ -642,6 +694,9 @@ export const generateReportHTML = (
       <div class="emoji">${overallEmoji}</div>
     </div>
   </header>
+
+  <!-- Writing Style Hero Section (NEW) -->
+  ${writingHeroSection}
 
   <!-- Analysis section -->
   ${analysisSection}

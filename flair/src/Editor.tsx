@@ -16,7 +16,7 @@ import CommentsSidebar, { CommentData } from './components/CommentsSidebar';
 import { Comment, CommentMark } from './extensions/CommentExtension';
 import { Color } from '@tiptap/extension-color';
 import TextStyle from '@tiptap/extension-text-style';
-import { generateReport } from './utils/reportGenerator';
+import { generateReport, WritingHero } from './utils/reportGenerator';
 import axios from 'axios';
 
 /**
@@ -65,6 +65,7 @@ const Editor = () => {
   const [currentAnalysis, setCurrentAnalysis] = useState<RubricScore[]>([]);
   const [showHistory, setShowHistory] = useState(false);
   const [essayHistory, setEssayHistory] = useState<any[]>([]);
+  const [currentWritingHero, setCurrentWritingHero] = useState<WritingHero | null>(null);
 
   // Initialize editor with saved content
   const editor = useEditor({
@@ -166,13 +167,32 @@ const Editor = () => {
     setShowHistory(false);
   }
 
-  const handleGenerateReport = () => {
+  const handleGenerateReport = async () => {
     if (!editor) return;
+    
+    // If we don't have a writing hero yet, fetch one
+    if (!currentWritingHero) {
+      try {
+        const essayText = editor.getText();
+        const response = await axios.post('http://localhost:5000/api/writing-style', {
+          essay: essayText
+        });
+        
+        if (response.data.success && response.data.hero) {
+          setCurrentWritingHero(response.data.hero);
+        }
+      } catch (error) {
+        console.error('Error fetching writing style hero:', error);
+      }
+    }
+    
+    // Generate the report with all available data
     generateReport({
       essayContent: editor.getHTML(),
       comments,
       wordCount,
-      analysis: currentAnalysis, // Use the stored analysis
+      analysis: currentAnalysis, 
+      writingHero: currentWritingHero || undefined // Include the writing hero if available
     });
   };
 
@@ -312,7 +332,11 @@ const Editor = () => {
 
         {showInsights && !showComments && (
           <div className="w-1/3 border-l p-4 bg-slate-50">
-            <EditorStats wordCount={wordCount} editor={editor} />
+            <EditorStats 
+              wordCount={wordCount} 
+              editor={editor} 
+              onAnalysisComplete={(hero) => setCurrentWritingHero(hero)}
+            />
           </div>
         )}
       </div>
