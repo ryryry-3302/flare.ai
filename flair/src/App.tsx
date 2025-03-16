@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import Editor from './Editor';
 import { FaEraser } from 'react-icons/fa';
+import logoSvg from './assets/logo.svg';
 
 const App = () => {
   const [showConfirmClear, setShowConfirmClear] = useState(false);
@@ -18,57 +19,55 @@ const App = () => {
   return (
     <div className="max-w-[1400px] mx-auto mt-6 px-4 mb-10">
       <div className="bg-white/80 backdrop-blur-sm rounded-xl shadow-xl p-6">
-        <div className="flex justify-between items-center mb-6">
+        <div className="flex justify-between items-center mb-1">
           <div className="flex items-center gap-2">
             <img 
-              src="https://img.icons8.com/color/48/book-and-pencil.png" 
+              src={logoSvg}
               alt="Flair logo" 
-              className="w-8 h-8" 
+              className="h-40" 
             />
-            <h1 className="text-3xl font-bold">
-              Flair
-            </h1>
           </div>
-          <button 
-            className="bg-red-50 text-red-600 hover:bg-red-100 px-3 py-1.5 rounded-md text-sm font-medium flex items-center gap-1.5 transition-colors"
+          
+          {/* Clear data button */}
+          <button
             onClick={() => setShowConfirmClear(true)}
+            className="flex items-center gap-1 px-3 py-1.5 text-sm bg-red-50 text-red-700 rounded-md hover:bg-red-100 transition-colors"
           >
             <FaEraser className="w-3.5 h-3.5" />
-            Reset Demo
+            Reset
           </button>
         </div>
-        
-        <p className="mb-8 text-gray-600 max-w-3xl">
-          Use the editor below to annotate, highlight, and provide feedback on essays.
-        </p>
-        
-        {/* Clear data confirmation */}
+
+        <Editor />
+
+        {/* Confirmation Dialog */}
         {showConfirmClear && (
-          <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50">
-            <div className="bg-white p-6 rounded-lg shadow-xl max-w-md mx-4">
-              <h3 className="text-lg font-bold mb-2">Reset Demo Data?</h3>
-              <p className="mb-4 text-slate-600">
-                This will clear all editor content and comments. This action cannot be undone.
+          <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
+            <div className="bg-white p-6 rounded-lg shadow-xl max-w-md">
+              <h3 className="text-xl font-semibold mb-4">Reset All Data?</h3>
+              <p className="text-slate-600 mb-6">
+                This will clear all your essays, comments, and settings. This action cannot be undone.
               </p>
               <div className="flex justify-end gap-3">
-                <button 
-                  className="px-4 py-2 bg-slate-100 hover:bg-slate-200 rounded-md text-slate-700 transition-colors"
+                <button
                   onClick={() => setShowConfirmClear(false)}
+                  className="px-4 py-2 text-sm font-medium rounded border border-slate-300 hover:bg-slate-50"
                 >
                   Cancel
                 </button>
-                <button 
-                  className="px-4 py-2 bg-red-600 hover:bg-red-700 rounded-md text-white transition-colors"
+                <button
                   onClick={clearAllData}
+                  className="px-4 py-2 text-sm font-medium rounded bg-red-600 text-white hover:bg-red-700"
                 >
-                  Clear All Data
+                  Reset Everything
                 </button>
               </div>
             </div>
           </div>
         )}
-        
-        <Editor />
+      </div>
+      <div className="text-center text-slate-500 text-sm mt-4">
+        © {new Date().getFullYear()} Flair. All rights reserved.
       </div>
     </div>
   );
