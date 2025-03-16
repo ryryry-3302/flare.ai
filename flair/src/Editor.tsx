@@ -12,7 +12,18 @@ import OrderedList from '@tiptap/extension-ordered-list';
 import Blockquote from '@tiptap/extension-blockquote';
 import ListItem from '@tiptap/extension-list-item';
 
-import { FaChartLine, FaFont, FaClock, FaComment, FaChartBar, FaFolderOpen, FaFile } from 'react-icons/fa';
+import {
+  FaChartLine, 
+  FaFont, 
+  FaClock, 
+  FaComment, 
+  FaChartBar, 
+  FaFolderOpen, 
+  FaFile, 
+  FaSpellCheck,
+  FaFileAlt,
+  FaEye
+} from 'react-icons/fa';
 import MetricsPanel from './components/MetricsPanel';
 import EditorStats from './components/EditorStats';
 
@@ -21,7 +32,7 @@ import { Comment, CommentMark } from './extensions/CommentExtension';
 import TextStyle from '@tiptap/extension-text-style';
 import { Color } from '@tiptap/extension-color';
 
-import { generateReport, WritingHero, StudentProgress } from './utils/reportGenerator'; // or your path
+import { generateReport, WritingHero, StudentProgress } from './utils/reportGenerator';
 import axios from 'axios';
 import { v4 as uuidv4 } from 'uuid';
 import { Dialog } from '@radix-ui/react-dialog';
@@ -75,7 +86,10 @@ const Editor: React.FC = () => {
   const [currentWritingHero, setCurrentWritingHero] = useState<WritingHero | null>(null);
   const [studentProgress, setStudentProgress] = useState<StudentProgress | null>(null);
   const [assignmentPdfBase64, setAssignmentPdfBase64] = useState<string | null>(null);
+  
+  // Loading states
   const [isLoadingProgress, setIsLoadingProgress] = useState(false);
+  const [isGrammarLoading, setIsGrammarLoading] = useState(false);
 
   // Tiptap editor setup
   const editor = useEditor({
@@ -146,10 +160,12 @@ const Editor: React.FC = () => {
   const handleGrammarCheck = async () => {
     if (!editor) return;
 
+    setIsGrammarLoading(true); // Turn on loading
     try {
       const text = editor.getText();
       if (!text || text.trim().length < 10) {
         alert('Essay text is too short to check grammar.');
+        setIsGrammarLoading(false);
         return;
       }
 
@@ -169,12 +185,6 @@ const Editor: React.FC = () => {
         // For safety, sort them in ascending order of `starting_index` to avoid confusion
         const sorted = corrections.slice().sort((a, b) => a.starting_index - b.starting_index);
 
-        // Because the user might have typed or changed text, 
-        // we interpret the indexes as best as we can. 
-        // But if your text hasn't changed, these indexes will match exactly.
-
-        // We'll highlight them with a comment for now (not auto-correcting text).
-        // If you want to auto-correct, you'd do an editor.replaceRange or something similar.
         sorted.forEach((item) => {
           const from = item.starting_index;
           const to = from + item.error.length;
@@ -213,6 +223,8 @@ const Editor: React.FC = () => {
     } catch (err) {
       console.error('Grammar check failed:', err);
       alert('Grammar check error. See console for details.');
+    } finally {
+      setIsGrammarLoading(false); // Turn off loading
     }
   };
 
@@ -457,41 +469,62 @@ const Editor: React.FC = () => {
 
           {/* Grammar Check */}
           <button
-            onClick={handleGrammarCheck}
-            className="px-3 py-1 rounded bg-purple-600 text-white font-medium transition-colors hover:bg-purple-700"
+            onClick={isGrammarLoading ? undefined : handleGrammarCheck}
+            disabled={isGrammarLoading}
+            className={`flex items-center gap-1 px-3 py-1 text-sm font-medium rounded transition-colors text-white
+              ${isGrammarLoading ? 'bg-purple-400 cursor-not-allowed' : 'bg-purple-600 hover:bg-purple-700'}
+            `}
           >
-            Check Grammar
+            {isGrammarLoading ? (
+              <span className="flex items-center">
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-1"></div>
+                Checking...
+              </span>
+            ) : (
+              <>
+                <FaSpellCheck className="w-4 h-4" />
+                Check Grammar
+              </>
+            )}
           </button>
 
           {/* Generate Report */}
           <button
             onClick={handleGenerateReport}
-            className="bg-blue-600 text-white px-3 py-1 rounded hover:bg-blue-700 transition-colors"
+            className="flex items-center gap-1 px-3 py-1 text-sm font-medium rounded transition-colors bg-blue-600 text-white hover:bg-blue-700"
           >
+            <FaFileAlt className="w-4 h-4" />
             Generate Report
           </button>
           
-          {/* Generate Assignments - NEW */}
+          {/* Generate / View Assignment */}
           <button
-            onClick={isLoadingProgress ? undefined : fetchStudentProgress}
+            onClick={isLoadingProgress ? undefined : (assignmentPdfBase64 ? openAssignmentPdf : fetchStudentProgress)}
             disabled={isLoadingProgress}
-            className={`px-3 py-1 rounded ${
-              assignmentPdfBase64 
+            className={`flex items-center gap-1 px-3 py-1 text-sm font-medium rounded transition-colors text-white
+              ${
+                assignmentPdfBase64 
                 ? 'bg-green-600 hover:bg-green-700' 
                 : 'bg-orange-500 hover:bg-orange-600'
-            } text-white font-medium transition-colors ${
-              isLoadingProgress ? 'opacity-50 cursor-not-allowed' : ''
-            }`}
+              }
+              ${isLoadingProgress ? 'opacity-50 cursor-not-allowed' : ''}
+            `}
           >
             {isLoadingProgress ? (
               <span className="flex items-center">
-                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-1"></div>
                 Loading...
               </span>
             ) : assignmentPdfBase64 ? (
-              <span onClick={openAssignmentPdf}>View Assignment</span>
+              <>
+                <FaEye className="w-4 h-4" />
+                View Assignment
+              </>
             ) : (
-              "Generate Assignment"
+              <>
+                <FaFileAlt className="w-4 h-4" />
+                Generate Assignment
+              </>
             )}
           </button>
         </div>
