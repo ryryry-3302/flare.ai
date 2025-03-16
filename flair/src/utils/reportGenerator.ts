@@ -14,7 +14,7 @@ export interface RubricScore {
 
 interface ReportGeneratorOptions {
   essayContent: string;
-  comments: any[]; // Replace with your actual comment type
+  comments: CommentData[]; // Update to use CommentData type
   wordCount: number;
   analysis?: RubricScore[]; // Optional to maintain backward compatibility
 }
@@ -131,12 +131,35 @@ export const generateReport = (options: ReportGeneratorOptions): Window | null =
   return reportWindow;
 };
 
-// Update the generateReportHTML function to properly use analysis data
+// Helper functions for scoring
+const getProgressBarColor = (score: number): string => {
+  if (score >= 4) return '#22c55e'; // green-500
+  if (score >= 3) return '#3b82f6'; // blue-500
+  if (score >= 2) return '#f59e0b'; // amber-500
+  return '#ef4444'; // red-500
+};
 
+const getEmoji = (score: number): string => {
+  if (score >= 4.5) return '🌟'; // Outstanding
+  if (score >= 4) return '😊'; // Great
+  if (score >= 3) return '👍'; // Good
+  if (score >= 2) return '🤔'; // Needs work
+  return '💪'; // Keep trying
+};
+
+const getEncouragement = (score: number): string => {
+  if (score >= 4.5) return "Outstanding work! You're a writing superstar! 🌟";
+  if (score >= 4) return "Amazing job! Your writing skills are fantastic! ⭐";
+  if (score >= 3) return "Good work! Keep practicing and you'll get even better! 👍";
+  if (score >= 2) return "You're on your way! Let's work on improving together! 💪";
+  return "Everyone starts somewhere! Let's build your writing skills together! 🌱";
+};
+
+// Main HTML generator
 export const generateReportHTML = (
   essayContent: string, 
   markedEssayContent: string, 
-  comments: any[], 
+  comments: CommentData[], 
   analysis: RubricScore[],
   wordCount: number
 ): string => {
@@ -147,9 +170,7 @@ export const generateReportHTML = (
     day: 'numeric'
   });
 
-  console.log('Generating report with analysis:', analysis); // Debug log
-
-  // Calculate grades from analysis
+  // Calculate summary grades
   const grades = {
     overall: analysis.length > 0 
       ? parseFloat((analysis.reduce((sum, item) => sum + item.score, 0) / analysis.length).toFixed(1))
@@ -162,12 +183,6 @@ export const generateReportHTML = (
     conventions: analysis.find(r => r.category.includes('Conventions'))?.score || 0
   };
 
-  // Log the calculated grades for debugging
-  console.log('Calculated grades:', grades);
-
-  // Rest of your existing generateReportHTML code...
-  // Make sure the analysis section is using the passed analysis data:
-  
   // Convert numeric score to letter grade
   const getLetterGrade = (score: number): string => {
     if (score >= 4.5) return 'A+';
@@ -181,233 +196,401 @@ export const generateReportHTML = (
     return 'F';
   };
 
-  // Return the complete HTML for the report
-  return `<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Essay Evaluation Report</title>
+  // Button toggle script (unchanged)
+  const teacherRevisionScript = `
+<script>
+  function toggleEditMode() {
+    const body = document.body;
+    body.contentEditable = body.contentEditable === 'true' ? 'false' : 'true';
+    document.getElementById('editButton').textContent =
+      body.contentEditable === 'true' ? 'Lock Report' : 'Edit Report';
+  }
+</script>
+`;
+
+  // Updated CSS styles with nicer buttons
+  const styles = `
   <style>
     body {
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+      font-family: 'Comic Sans MS', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
       line-height: 1.6;
-      color: #333;
+      color: #374151;
       max-width: 800px;
       margin: 0 auto;
       padding: 20px;
+      background-color: #f8fafc;
+      counter-reset: comment-counter;
     }
+    
     header {
+      background: linear-gradient(135deg, #e0f2fe, #dbeafe);
+      border-radius: 16px;
+      padding: 2rem;
       text-align: center;
       margin-bottom: 2rem;
-      padding-bottom: 1rem;
-      border-bottom: 1px solid #eee;
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
     }
+    
     h1 {
+      color: #1e40af;
+      font-size: 2.5rem;
       margin-bottom: 0.5rem;
-      color: #2563eb;
     }
+    
     .meta {
-      color: #666;
-      font-size: 0.9rem;
-    }
-    .scores {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
-      gap: 1rem;
-      margin: 2rem 0;
-    }
-    .score-card {
-      background: #f9fafb;
-      border-radius: 8px;
-      padding: 1rem;
-      text-align: center;
-      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-    }
-    .score-card h3 {
-      margin-top: 0;
-      margin-bottom: 0.5rem;
-      font-size: 0.9rem;
-      color: #4b5563;
-    }
-    .score-value {
-      font-size: 1.8rem;
-      font-weight: bold;
-      color: #1f2937;
-    }
-    .overall {
-      grid-column: span 2;
-      background: #eff6ff;
-      border: 1px solid #dbeafe;
-    }
-    .overall .score-value {
-      color: #2563eb;
-      font-size: 2.2rem;
-    }
-    .essay-content {
-      margin: 2rem 0;
-      padding: 1.5rem;
-      background: #fff;
-      border: 1px solid #e5e7eb;
-      border-radius: 8px;
-    }
-    .comments-section {
-      margin: 2rem 0;
-    }
-    .comment-item {
-      margin-bottom: 1rem;
-      padding: 1rem;
-      background: #f9fafb;
-      border-radius: 8px;
-      border-left: 4px solid #2563eb;
-    }
-    .comment-label {
-      font-weight: 600;
-      color: #2563eb;
-    }
-    .comment-text {
-      margin: 0.5rem 0 0;
-    }
-    .essay-comment-mark {
-      background-color: rgba(37, 99, 235, 0.1);
-      border-bottom: 2px solid #2563eb;
-      position: relative;
-    }
-    .comment-number {
-      color: #2563eb;
-      font-size: 0.8rem;
-      font-weight: bold;
-      vertical-align: super;
-      text-decoration: none;
-      margin-left: 2px;
-    }
-    .analysis-section {
-      margin: 2rem 0;
-    }
-    .rubric-item {
-      margin-bottom: 1.5rem;
-      padding: 1rem;
-      background: #f9fafb;
-      border-radius: 8px;
-    }
-    .rubric-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: 0.5rem;
-    }
-    .rubric-category {
-      font-weight: 600;
-      color: #4b5563;
-    }
-    .rubric-score {
-      font-weight: bold;
-      color: #2563eb;
-    }
-    .rubric-explanation {
-      margin: 0.5rem 0;
+      color: #6b7280;
       font-size: 0.95rem;
     }
-    .rubric-comments {
-      margin-top: 1rem;
-      font-size: 0.9rem;
+    
+    .scores {
+      display: flex;
+      flex-direction: column;
+      gap: 2rem;
+      margin: 2rem 0;
     }
-    .rubric-comment-item {
-      margin-bottom: 0.5rem;
-      padding: 0.5rem;
-      background: rgba(37, 99, 235, 0.05);
-      border-radius: 4px;
+
+    .overall-score {
+      background: linear-gradient(135deg, #e0f2fe, #dbeafe);
+      border-radius: 16px;
+      padding: 1.5rem;
+      text-align: center;
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+      max-width: 400px;
+      margin: 0 auto 2rem auto;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 1.5rem;
+    }
+
+    .score-main {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+    }
+
+    .overall-score .score-value {
+      font-size: 3rem;
+      color: #1e40af;
+      line-height: 1;
+    }
+
+    .overall-score .grade-label {
+      font-size: 1.25rem;
+      color: #6b7280;
+      margin-top: 0.25rem;
+    }
+
+    .overall-score .emoji {
+      font-size: 2.5rem;
+      margin: 0;
+    }
+
+    .overall-progress {
+      flex-grow: 1;
+      max-width: 150px;
+    }
+
+    .analysis-section {
+      margin-top: 3rem;
+    }
+
+    .category-container {
+      background: white;
+      border-radius: 12px;
+      padding: 1.5rem;
+      margin-bottom: 1.5rem;
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+    }
+
+    .category-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 1rem;
+      padding-bottom: 0.5rem;
+      border-bottom: 2px solid #e5e7eb;
+    }
+
+    .category-title {
+      font-size: 1.25rem;
+      font-weight: bold;
+      color: #1e40af;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .category-score {
+      font-size: 1.5rem;
+      font-weight: bold;
+      color: #1e40af;
+    }
+    
+    .progress-bar {
+      width: 100%;
+      height: 12px;
+      background-color: #e5e7eb;
+      border-radius: 6px;
+      margin: 0.5rem 0;
+      overflow: hidden;
+    }
+    
+    .progress-fill {
+      height: 100%;
+      transition: width 1s ease-in-out;
+    }
+
+    .essay-content {
+      margin-top: 2rem;
+      background: white;
+      border-radius: 12px;
+      padding: 1.5rem;
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+    }
+
+    .comments-section {
+      margin-top: 3rem;
+      background: white;
+      border-radius: 12px;
+      padding: 1.5rem;
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+    }
+
+    .comment-box {
+      background-color: #fffbeb;
+      border-left: 4px solid #fbbf24;
+      padding: 15px;
+      margin-bottom: 15px;
+      border-radius: 0 5px 5px 0;
+      position: relative;
+    }
+
+    .comment-box::before {
+      content: "[" counter(comment-counter) "]";
+      position: absolute;
+      top: 15px;
+      right: 15px;
+      color: #2563eb;
+      font-weight: bold;
+      counter-increment: comment-counter;
+    }
+
+    .comment-author {
+      font-weight: bold;
+      margin-bottom: 5px;
+    }
+
+    .comment-content {
+      margin-bottom: 5px;
+    }
+
+    .resolved .comment-content {
+      text-decoration: line-through;
+      color: #888;
+    }
+
+    .encouragement {
+      background: #f0fdf4;
+      border-radius: 12px;
+      padding: 1rem;
+      margin: 2rem 0;
+      text-align: center;
+      color: #166534;
+    }
+
+    /* Highlighted text styles */
+    .essay-comment-mark {
+      background-color: #fef3c7;
+      padding: 0.1em 0;
+      border-bottom: 2px solid #f59e0b;
+      cursor: pointer;
+      position: relative;
+    }
+
+    .comment-number {
+      color: #f59e0b;
+      font-size: 0.75rem;
+      font-weight: 600;
+      text-decoration: none;
+      vertical-align: super;
+      margin-left: 4px;
+    }
+
+    /* Button Styles */
+    .report-btn {
+      display: inline-block;
+      background-color: #1e40af;
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      padding: 0.75rem 1.25rem;
+      cursor: pointer;
+      font-size: 1rem;
+      margin-right: 0.5rem;
+      margin-bottom: 1rem;
+      transition: background-color 0.2s ease-in-out;
+    }
+
+    .report-btn:hover {
+      background-color: #1d4ed8;
+    }
+
+    /* Hide certain elements in print */
+    .no-print {
+      display: inline-block;
     }
     @media print {
       body {
-        padding: 0;
-        font-size: 11pt;
-      }
-      .score-card, .essay-content, .comment-item, .rubric-item {
-        box-shadow: none;
-        border: 1px solid #ddd;
+        background: white;
       }
       .no-print {
         display: none;
       }
     }
   </style>
+`;
+
+  // Build your sections as before
+  const scoresSection = `
+  <div class="scores">
+    <div class="overall-score">
+      <div class="score-main">
+        <div>
+          <div class="score-value">
+            ${grades.overall}/5
+          </div>
+          <div class="grade-label">
+            ${getLetterGrade(grades.overall)}
+          </div>
+        </div>
+        <div class="emoji">
+          ${getEmoji(grades.overall)}
+        </div>
+      </div>
+      <div class="overall-progress">
+        <div class="progress-bar">
+          <div class="progress-fill" 
+               style="width: ${(grades.overall/5)*100}%; background-color: ${getProgressBarColor(grades.overall)}">
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+`;
+
+  const analysisSection = `
+  ${
+    analysis && analysis.length > 0 
+    ? `
+    <div class="analysis-section">
+      <h2>Detailed Analysis</h2>
+      ${analysis.map(rubric => `
+        <div class="category-container">
+          <div class="category-header">
+            <div class="category-title">
+              ${getEmoji(rubric.score)} ${rubric.category}
+            </div>
+            <div class="category-score">${rubric.score}/5</div>
+          </div>
+          <div class="progress-bar">
+            <div class="progress-fill" 
+                 style="width: ${(rubric.score/5)*100}%; background-color: ${getProgressBarColor(rubric.score)}">
+            </div>
+          </div>
+          <div class="rubric-explanation">
+            ${rubric.explanation.map(exp => `<p style="margin-top:0.5rem;">${exp}</p>`).join('')}
+          </div>
+          ${
+            rubric.comments && rubric.comments.length > 0 
+            ? `
+              <div class="rubric-comments" style="margin-top:1rem; padding-top:1rem; border-top: 1px solid #e5e7eb;">
+                <h4 style="margin-bottom:0.5rem; font-weight:bold; color:#1e40af;">Specific Comments</h4>
+                ${rubric.comments.map(comment => `
+                  <div style="background-color:#f9fafb; padding:0.75rem; border-radius:8px; margin-bottom:0.5rem;">
+                    ${comment.comment}
+                  </div>
+                `).join('')}
+              </div>
+            `
+            : ''
+          }
+        </div>
+      `).join('')}
+    </div>
+    `
+    : ''
+  }
+`;
+
+  const commentsSection = `
+  ${
+    comments && comments.length > 0 
+    ? `
+    <div class="section comments-section">
+      <h2>Teacher's Comments</h2>
+      ${comments.map((comment, index) => {
+        const commentNumber = index + 1;
+        return `
+          <div id="comment-${commentNumber}" class="comment-box${comment.resolved ? ' resolved' : ''}">
+            ${
+              comment.highlightedText
+              ? `
+                <div style="font-style:italic; color:#4b5563; margin-bottom:10px; padding:8px 15px; background-color:#fffbeb; border-left:3px solid #fbbf24; border-radius:0 4px 4px 0;">
+                  "<span style="background-color:rgba(251, 191, 36, 0.2); padding:2px 0;">${comment.highlightedText}</span>"
+                </div>
+              `
+              : ''
+            }
+            <div class="comment-author">Teacher noted:</div>
+            <div class="comment-content">${comment.text || comment.content}</div>
+            ${
+              comment.resolved 
+              ? '<div style="font-size: 0.8em; color: #047857; margin-top: 5px;">✓ This issue has been resolved</div>' 
+              : ''
+            }
+            <div style="margin-top: 10px; text-align:right;">
+              <a href="#top" style="font-size:0.8em; color:#2563eb; text-decoration:none;">↑ Back to essay</a>
+            </div>
+          </div>
+        `;
+      }).join('')}
+    </div>
+    `
+    : '<p>No specific comments were added to this essay.</p>'
+  }
+`;
+
+  // Final HTML
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Essay Evaluation Report</title>
+  ${styles}
+  ${teacherRevisionScript}
 </head>
-<body>
+<body id="top" contenteditable="false">
+
+  <!-- Buttons (no-print so they don't appear in paper version) -->
+  <button id="editButton" class="report-btn no-print" onclick="toggleEditMode()">
+    Edit Report
+  </button>
+  <button class="report-btn no-print" onclick="window.print()">
+    Print Report
+  </button>
+
   <header>
     <h1>Essay Evaluation Report</h1>
     <div class="meta">Generated on ${dateString} • ${wordCount} words</div>
   </header>
 
   <!-- Scores section -->
-  <div class="scores">
-    <div class="score-card overall">
-      <h3>Overall Score</h3>
-      <div class="score-value">${grades.overall}/5 <span style="font-size: 1rem; color: #6b7280;">(${getLetterGrade(grades.overall)})</span></div>
-    </div>
-    ${grades.content ? `
-    <div class="score-card">
-      <h3>Content & Ideas</h3>
-      <div class="score-value">${grades.content}/5</div>
-    </div>
-    ` : ''}
-    ${grades.organization ? `
-    <div class="score-card">
-      <h3>Organization</h3>
-      <div class="score-value">${grades.organization}/5</div>
-    </div>
-    ` : ''}
-    ${grades.voice ? `
-    <div class="score-card">
-      <h3>Voice & Tone</h3>
-      <div class="score-value">${grades.voice}/5</div>
-    </div>
-    ` : ''}
-    ${grades.wordChoice ? `
-    <div class="score-card">
-      <h3>Word Choice</h3>
-      <div class="score-value">${grades.wordChoice}/5</div>
-    </div>
-    ` : ''}
-    ${grades.fluency ? `
-    <div class="score-card">
-      <h3>Sentence Fluency</h3>
-      <div class="score-value">${grades.fluency}/5</div>
-    </div>
-    ` : ''}
-    ${grades.conventions ? `
-    <div class="score-card">
-      <h3>Conventions</h3>
-      <div class="score-value">${grades.conventions}/5</div>
-    </div>
-    ` : ''}
-  </div>
+  ${scoresSection}
 
   <!-- Analysis section -->
-  ${analysis && analysis.length > 0 ? `
-  <div class="analysis-section">
-    <h2>Detailed Analysis</h2>
-    ${analysis.map(rubric => `
-      <div class="rubric-item">
-        <div class="rubric-header">
-          <div class="rubric-category">${rubric.category}</div>
-          <div class="rubric-score">${rubric.score}/5</div>
-        </div>
-        <div class="rubric-explanation">
-          ${rubric.explanation.map(exp => `<p>${exp}</p>`).join('')}
-        </div>
-        ${rubric.comments && rubric.comments.length > 0 ? `
-          <div class="rubric-comments">
-            <h4>Specific Comments</h4>
-            ${rubric.comments.map(comment => `
-              <div class="rubric-comment-item">${comment.comment}</div>
-            `).join('')}
-          </div>
-        ` : ''}
-      </div>
-    `).join('')}
-  </div>
-  ` : ''}
+  ${analysisSection}
 
   <!-- Essay content section -->
   <div class="essay-content">
@@ -415,23 +598,17 @@ export const generateReportHTML = (
     <div>${markedEssayContent}</div>
   </div>
 
-  <!-- Teacher comments section -->
-  ${comments && comments.length > 0 ? `
-  <div class="comments-section">
-    <h2>Teacher Comments</h2>
-    ${comments.map((comment, index) => `
-      <div class="comment-item" id="comment-${index + 1}">
-        <div class="comment-label">Comment #${index + 1}</div>
-        <p class="comment-text">${comment.text}</p>
-      </div>
-    `).join('')}
+  <!-- Comments section -->
+  ${commentsSection}
+
+  <!-- Encouragement message -->
+  <div class="encouragement">
+    ${getEncouragement(grades.overall)}
   </div>
-  ` : ''}
 
   <!-- Footer -->
-  <footer>
+  <footer style="margin-top:2rem; text-align:center;">
     <p class="meta">Generated by Flair Essay Analysis Tool</p>
-    <button class="no-print" onclick="window.print()">Print Report</button>
   </footer>
 </body>
 </html>`;

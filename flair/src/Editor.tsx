@@ -7,14 +7,14 @@ import BulletList from '@tiptap/extension-bullet-list';
 import OrderedList from '@tiptap/extension-ordered-list';
 import Blockquote from '@tiptap/extension-blockquote';
 import ListItem from '@tiptap/extension-list-item';
-import { FaChartBar, FaChartLine, FaFont, FaClock, FaComment, FaFileAlt } from 'react-icons/fa';
+import { FaChartLine, FaFont, FaClock, FaComment, FaChartBar } from 'react-icons/fa';
 import MetricsPanel from './components/MetricsPanel';
 import EditorStats from './components/EditorStats';
 import CommentsSidebar, { CommentData } from './components/CommentsSidebar';
 import { Comment, CommentMark } from './extensions/CommentExtension';
-import { generateReport } from './utils/reportGenerator';
 import Underline from '@tiptap/extension-underline';
 import { Color } from '@tiptap/extension-color';
+import { generateReport } from './utils/reportGenerator';
 
 // Storage keys
 const STORAGE_KEYS = {
@@ -39,7 +39,10 @@ const Editor = () => {
   const [showInsights, setShowInsights] = useState(false);
   const [showComments, setShowComments] = useState(false);
   const [wordCount, setWordCount] = useState(0);
-  const [comments, setComments] = useState<CommentData[]>([]);
+  const [comments, setComments] = useState<CommentData[]>(() => {
+    const saved = localStorage.getItem('essay-editor-comments');
+    return saved ? JSON.parse(saved) : [];
+  });
   const [activeCommentId, setActiveCommentId] = useState<string | null>(null);
   const [isLoaded, setIsLoaded] = useState(false);
   const [currentAnalysis, setCurrentAnalysis] = useState<RubricScore[]>([]);
@@ -83,6 +86,22 @@ const Editor = () => {
     }
   }, [editor]);
 
+  // Add effect to save comments
+  useEffect(() => {
+    if (comments.length > 0) {
+      localStorage.setItem('essay-editor-comments', JSON.stringify(comments));
+    }
+  }, [comments]);
+
+  const handleGenerateReport = () => {
+    if (!editor) return;
+    generateReport({
+      essayContent: editor.getHTML(),
+      comments,
+      wordCount,
+      analysis: currentAnalysis // Use the stored analysis
+    });
+  };
 
   return (
     <div className="border rounded-md overflow-hidden bg-white">
@@ -91,7 +110,13 @@ const Editor = () => {
         <h2 className="text-slate-700 font-medium">Essay Editor</h2>
         <div className="flex gap-2">
           <button
-            onClick={() => setShowComments(!showComments)}
+            onClick={() => {
+              setShowComments(!showComments);
+              if (!showComments) {
+                setShowInsights(false);
+                setShowMetrics(false);
+              }
+            }}
             className={`flex items-center gap-1 px-3 py-1 text-sm font-medium rounded transition-colors ${
               showComments ? 'bg-blue-600 text-white' : 'bg-slate-200 text-slate-700'
             }`}
@@ -106,7 +131,13 @@ const Editor = () => {
           </button>
 
           <button
-            onClick={() => setShowInsights(!showInsights)}
+            onClick={() => {
+              setShowInsights(!showInsights);
+              if (!showInsights) {
+                setShowComments(false);
+                setShowMetrics(false);
+              }
+            }}
             className={`flex items-center gap-1 px-3 py-1 text-sm font-medium rounded transition-colors ${
               showInsights ? 'bg-blue-600 text-white' : 'bg-slate-200 text-slate-700'
             }`}
@@ -115,8 +146,29 @@ const Editor = () => {
             {showInsights ? 'Hide' : 'Insights'}
           </button>
 
+          {/* New Metrics button */}
+          <button
+            onClick={() => {
+              setShowMetrics(!showMetrics);
+              if (!showMetrics) {
+                setShowComments(false);
+                setShowInsights(false);
+              }
+            }}
+            className={`flex items-center gap-1 px-3 py-1 text-sm font-medium rounded transition-colors ${
+              showMetrics ? 'bg-blue-600 text-white' : 'bg-slate-200 text-slate-700'
+            }`}
+          >
+            <FaChartBar className="w-4 h-4" />
+            {showMetrics ? 'Hide Metrics' : 'Metrics'}
+          </button>
 
-
+          <button
+            onClick={handleGenerateReport}
+            className="bg-blue-600 text-white px-3 py-1 rounded"
+          >
+            Generate Report
+          </button>
         </div>
       </div>
 
@@ -168,6 +220,7 @@ const Editor = () => {
           editor={editor}
           initialAnalysis={currentAnalysis}
           onAnalysisComplete={setCurrentAnalysis}
+          comments={comments} // Add this line
         />
       )}
     </div>

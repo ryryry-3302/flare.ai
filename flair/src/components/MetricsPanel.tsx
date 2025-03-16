@@ -4,13 +4,15 @@ import { FaTimes, FaSpinner, FaFileAlt, FaSync } from 'react-icons/fa';
 import { motion } from 'framer-motion';
 import { generateReport } from '../utils/reportGenerator';
 import * as Tooltip from '@radix-ui/react-tooltip';
+import { CommentData } from '../components/CommentsSidebar';
 
 interface MetricsPanelProps {
   onClose: () => void;
   regenerateKey?: number;
   editor: Editor | null;
-  initialAnalysis?: RubricScore[]; // Add this
-  onAnalysisComplete?: (analysis: RubricScore[]) => void; // Add this
+  initialAnalysis?: RubricScore[];
+  onAnalysisComplete?: (analysis: RubricScore[]) => void;
+  comments: CommentData[]; // Add this line
 }
 
 interface Comment {
@@ -63,7 +65,8 @@ const MetricsPanel: React.FC<MetricsPanelProps> = ({
   regenerateKey = 0, 
   editor,
   initialAnalysis = [],
-  onAnalysisComplete
+  onAnalysisComplete,
+  comments
 }) => {
   const [isLoading, setIsLoading] = useState(initialAnalysis.length === 0);
   const [error, setError] = useState<string | null>(null);
@@ -183,18 +186,6 @@ const MetricsPanel: React.FC<MetricsPanelProps> = ({
   const updateAnalysis = (newAnalysis: RubricScore[]) => {
     setAnalysis(newAnalysis);
     onAnalysisComplete?.(newAnalysis);
-  };
-
-  // Add handleDownloadReport function inside MetricsPanel component
-  const handleDownloadReport = () => {
-    if (!editor || !analysis.length) return;
-    
-    generateReport({
-      essayContent: editor.getHTML(),
-      comments: [], // Add your comments if available
-      wordCount,
-      analysis: analysis // Pass the current analysis data
-    });
   };
 
   return (
@@ -324,14 +315,6 @@ const MetricsPanel: React.FC<MetricsPanelProps> = ({
               Last analyzed: {new Date().toLocaleTimeString()}
             </div>
             <div className="flex gap-2">
-              <button
-                onClick={handleDownloadReport}
-                className="flex items-center gap-1 px-3 py-1 bg-green-600 text-white text-sm font-medium rounded hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                disabled={isLoading || !analysis.length}
-              >
-                <FaFileAlt className="w-4 h-4" />
-                Generate Report
-              </button>
               {!isLoading && (
                 <button
                   onClick={handleRegenerate}

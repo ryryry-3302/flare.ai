@@ -7,11 +7,9 @@ import { v4 as uuidv4 } from 'uuid';
 export interface CommentData {
   id: string;
   content: string;
-  author: string;
-  timestamp: Date;
-  resolved: boolean;
-  selection?: { from: number; to: number };
-  highlightedText?: string; // Make sure this field is in the interface
+  highlightedText?: string;
+  resolved?: boolean;
+  timestamp: number;
 }
 
 interface CommentsSidebarProps {
@@ -65,7 +63,7 @@ const CommentsSidebar: React.FC<CommentsSidebarProps> = ({
       id,
       content: newComment,
       author: 'Teacher',
-      timestamp: new Date(),
+      timestamp: new Date().getTime(),
       resolved: false,
       selection: { from, to },
       highlightedText: selectedText // Make sure this field is being populated
@@ -167,7 +165,7 @@ const CommentsSidebar: React.FC<CommentsSidebarProps> = ({
                     <FaComment className="mr-1 text-blue-500" /> {comment.author}
                   </div>
                   <div className="text-xs text-slate-500">
-                    {comment.timestamp.toLocaleTimeString([], { 
+                    {new Date(comment.timestamp).toLocaleTimeString([], { 
                       hour: '2-digit', 
                       minute: '2-digit' 
                     })}

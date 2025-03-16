@@ -12,12 +12,10 @@ import {
   FaHeading,
   FaLink,
   FaUpload,
-  FaChartBar,
   FaUnderline // Add this import
 } from 'react-icons/fa';
 import * as Tooltip from '@radix-ui/react-tooltip';
 import QRCodeUploadModal from './components/QRUploadModal';
-import MetricsPanel from './components/MetricsPanel';
 import * as Popover from '@radix-ui/react-popover';
 import { ColorSelector } from './components/ColorSelector';
 
@@ -27,28 +25,11 @@ type MenuBarProps = {
 
 const MenuBar: React.FC<MenuBarProps> = ({ editor }) => {
   const [showQRCodeModal, setShowQRCodeModal] = useState(false);
-  const [showMetricsPanel, setShowMetricsPanel] = useState(false);
-  const [metricsRegenerateKey, setMetricsRegenerateKey] = useState(0);
-  const [lastAnalysis, setLastAnalysis] = useState<RubricScore[]>([]);
   const [highlightColor, setHighlightColor] = useState('#fef08a'); // Default yellow
 
   if (!editor) {
     return null;
   }
-
-  const handleShowMetrics = () => {
-    if (!editor) return;
-    
-    const content = editor.getText();
-    
-    if (!content || content.trim().length < 5) {
-      alert("Please add some content before analyzing.");
-      return;
-    }
-
-    setMetricsRegenerateKey(prev => prev + 1);
-    setShowMetricsPanel(true);
-  };
 
   const handleFileUploaded = (file: File, extractedText?: string) => {
     if (extractedText) {
@@ -339,7 +320,7 @@ const MenuBar: React.FC<MenuBarProps> = ({ editor }) => {
           </Tooltip.Provider>
         </div>
 
-        {/* Upload and Metrics */}
+        {/* Upload button */}
         <div className="flex items-center gap-1">
           <Tooltip.Provider>
             <Tooltip.Root>
@@ -360,27 +341,6 @@ const MenuBar: React.FC<MenuBarProps> = ({ editor }) => {
               </Tooltip.Portal>
             </Tooltip.Root>
           </Tooltip.Provider>
-
-          <Tooltip.Provider>
-            <Tooltip.Root>
-              <Tooltip.Trigger asChild>
-                <button
-                  type="button"
-                  onClick={handleShowMetrics}
-                  className="flex items-center gap-1 px-3 py-1 bg-blue-600 text-white text-sm font-medium rounded hover:bg-blue-700 transition-colors"
-                >
-                  <FaChartBar className="w-4 h-4" />
-                  Analysis
-                </button>
-              </Tooltip.Trigger>
-              <Tooltip.Portal>
-                <Tooltip.Content className="bg-slate-800 text-white px-2 py-1 rounded text-xs">
-                  Analyze Essay
-                  <Tooltip.Arrow className="fill-slate-800" />
-                </Tooltip.Content>
-              </Tooltip.Portal>
-            </Tooltip.Root>
-          </Tooltip.Provider>
         </div>
       </div>
 
@@ -388,16 +348,6 @@ const MenuBar: React.FC<MenuBarProps> = ({ editor }) => {
         <QRCodeUploadModal 
           onClose={() => setShowQRCodeModal(false)}
           onFileUploaded={handleFileUploaded}
-        />
-      )}
-
-      {showMetricsPanel && (
-        <MetricsPanel 
-          onClose={() => setShowMetricsPanel(false)}
-          regenerateKey={metricsRegenerateKey}
-          editor={editor}
-          initialAnalysis={lastAnalysis} // Pass the last analysis
-          onAnalysisComplete={(analysis) => setLastAnalysis(analysis)} // Store new analysis
         />
       )}
     </>

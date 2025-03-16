@@ -20,10 +20,24 @@
       rel="stylesheet"
     />
 
+    <!-- Add custom styles for gradient -->
+    <style>
+      body {
+        background: linear-gradient(135deg, 
+          #e9f1ff 0%,
+          #f3e7ff 25%,
+          #fff1f9 50%,
+          #e7f5ff 75%,
+          #e9f1ff 100%
+        );
+        min-height: 100vh;
+      }
+    </style>
+
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com?plugins=typography"></script>
   </head>
-  <body class="bg-slate-50 text-slate-800">
+  <body class="text-slate-800">
     <div id="root"></div>
     <div id="portal-root"></div> <!-- For modals, popovers, etc. -->
     <script type="module" src="/src/main.tsx"></script>
