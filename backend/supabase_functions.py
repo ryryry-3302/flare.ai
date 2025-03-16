@@ -5,12 +5,14 @@ from dotenv import load_dotenv
 # Load environment variables from .env file
 load_dotenv()
 
-# Retrieve the Supabase URL and API key from environment variables
-url: str = os.getenv("SUPABASE_URL")
-key: str = os.getenv("SUPABASE_KEY")
+def get_supabase_client() -> Client:
+    url = os.getenv("SUPABASE_URL")
+    key = os.getenv("SUPABASE_KEY")
+    supabase: Client = create_client(url, key)
+    return supabase
 
 # Initialize the Supabase client
-supabase: Client = create_client(url, key)
+supabase: Client = get_supabase_client()
 
 def insert_to_supabase(table_name, data: dict):
     response = supabase.table(table_name).insert(data).execute()

@@ -13,6 +13,7 @@ import PIL.Image
 from multimodal_extract_text import extract_text, clean_extracted_text  # Use the unified extraction function
 from scorer import grade_essay
 import logging
+from supabase_functions import get_supabase_client
 
 # Configure logging
 logging.basicConfig(
@@ -275,6 +276,13 @@ def analyze_essay():
     except Exception as e:
         logger.exception("Error processing essay analysis")
         return jsonify({'error': str(e)}), 500
+
+@app.route('/api/list-essays', methods=['GET'])
+def list_essays():
+    supabase = get_supabase_client()
+    # Replace "essays" with your actual table name
+    response = supabase.table("Essays").select("*").execute()
+    return jsonify(response.data or [])
 
 if __name__ == '__main__':
     logger.info("Starting Flask server")
