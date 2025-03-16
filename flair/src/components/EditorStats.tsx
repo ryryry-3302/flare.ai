@@ -43,8 +43,9 @@ function countSyllablesInWord(rawWord: string): number {
 }
 
 interface EditorStatsProps {
-  wordCount: number;
   editor: Editor | null;
+  wordCount: number;
+  onAnalysisComplete?: (hero: WritingHero) => void; // Add callback for when analysis is complete
 }
 
 interface WritingHero {
@@ -55,7 +56,7 @@ interface WritingHero {
   icon: string;
 }
 
-const EditorStats: React.FC<EditorStatsProps> = ({ wordCount, editor }) => {
+const EditorStats: React.FC<EditorStatsProps> = ({ wordCount, editor, onAnalysisComplete }) => {
   const [sentenceCount, setSentenceCount] = useState(0);
   const [paragraphCount, setParagraphCount] = useState(0);
   const [wordLengthDistribution, setWordLengthDistribution] = useState<number[]>([]);
@@ -173,6 +174,11 @@ const EditorStats: React.FC<EditorStatsProps> = ({ wordCount, editor }) => {
       
       if (response.data.success && response.data.hero) {
         setWritingHero(response.data.hero);
+        
+        // Call the callback to notify parent component
+        if (onAnalysisComplete) {
+          onAnalysisComplete(response.data.hero);
+        }
       } else {
         setError("Couldn't determine your writing style. Please try again.");
       }
