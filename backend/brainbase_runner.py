@@ -53,19 +53,6 @@ class BrainbaseRunner:
         await ws.send_str(json.dumps(init_message))
         print("Initialization message sent.")
     
-    async def send_image(self, ws, image_path):
-        # Open and encode the image to base64
-        with open(image_path, "rb") as image_file:
-            image_data = base64.b64encode(image_file.read()).decode('utf-8')
-
-        # Send image data
-        image_message = {
-            "action": "process_image",
-            "data": {"image": image_data}
-        }
-        await ws.send_str(json.dumps(image_message))
-        print("Image data sent.")
-    
     async def _listen(self, ws):
         # Create a buffer to accumulate streaming chunks.
         stream_buffer = ""
