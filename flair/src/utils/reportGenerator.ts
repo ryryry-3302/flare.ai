@@ -262,6 +262,7 @@ const teacherRevisionScript = `
 </script>
 `;
 
+// Replace the existing styles with the enhanced version
 const styles = `
 <style>
   body {
@@ -329,15 +330,68 @@ const styles = `
     font-size: 1.75rem;
   }
 
+  /* WRITING HERO: Now in a single row with icon + text side by side */
+  .writing-hero-section {
+    margin-top: 3rem; 
+    background: linear-gradient(135deg, #f0f9ff, #e0f2fe); 
+    border-radius: 12px; 
+    padding: 1.5rem; 
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+  }
+  .hero-container {
+    display: flex; 
+    flex-direction: row;  /* row instead of column */
+    align-items: center;  /* center vertically */
+    gap: 1.5rem; 
+    margin-top: 1rem;
+  }
+  .hero-icon {
+    width: 200px; 
+    height: 200px; 
+    border-radius: 50%; 
+    background-color: white; 
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    display: flex; 
+    align-items: center; 
+    justify-content: center;
+    flex-shrink: 0; /* keep icon from shrinking */
+  }
+  .hero-content {
+    flex: 1; /* grow to fill space */
+  }
+  .hero-content h3 {
+    color: #1e40af; 
+    margin-top: 0; 
+    margin-bottom: 0.75rem; 
+    font-size: 1.75rem;
+  }
+  .hero-content p {
+    margin-top: 0; 
+    margin-bottom: 1.25rem;
+  }
+  .hero-strengths, .hero-tips {
+    background-color: white; 
+    padding: 1rem; 
+    border-radius: 8px; 
+    margin-bottom: 1rem;
+  }
+
   .analysis-section {
     margin-top: 3rem;
+  }
+
+  /* GRID for 6 scores: 2 rows x 3 columns */
+  .analysis-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1rem;
+    margin-top: 1.5rem;
   }
 
   .category-container {
     background: white;
     border-radius: 12px;
     padding: 1.5rem;
-    margin-bottom: 1.5rem;
     box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
   }
 
@@ -556,50 +610,57 @@ export const generateReportHTML = (
   const letterGrade = getLetterGrade(grades.overall);
   const overallEmoji = getEmoji(grades.overall);
 
-  // Build the analysis section
+  // Updated analysis section to use the grid layout
   const analysisSection = `
-    ${
-      analysis && analysis.length > 0 
-      ? `
-      <div class="analysis-section">
-        <h2>Detailed Analysis</h2>
-        ${analysis.map(rubric => `
-          <div class="category-container">
-            <div class="category-header">
-              <div class="category-title">
-                ${getEmoji(rubric.score)} ${rubric.category}
-              </div>
-              <div class="category-score">${rubric.score}/5</div>
+${
+  analysis && analysis.length > 0 
+    ? `
+    <div class="analysis-section">
+      <h2>Detailed Analysis</h2>
+
+      <!-- Each category container in a stacked row -->
+      ${analysis.map(rubric => `
+        <div class="category-container">
+          <div class="category-header">
+            <div class="category-title">
+              ${getEmoji(rubric.score)} ${rubric.category}
             </div>
-            <div class="progress-bar">
-              <div class="progress-fill" 
-                   style="width: ${(rubric.score/5)*100}%; background-color: ${getProgressBarColor(rubric.score)}">
-              </div>
+            <div class="category-score">${rubric.score}/5</div>
+          </div>
+          <div class="progress-bar">
+            <div class="progress-fill"
+                 style="width: ${(rubric.score/5)*100}%; background-color: ${getProgressBarColor(rubric.score)}">
             </div>
-            <div class="rubric-explanation">
-              ${rubric.explanation.map(exp => `<p style="margin-top:0.5rem;">${exp}</p>`).join('')}
-            </div>
-            ${
-              rubric.comments && rubric.comments.length > 0 
+          </div>
+          <div class="rubric-explanation">
+            ${rubric.explanation.map(exp => `<p style="margin-top:0.5rem;">${exp}</p>`).join('')}
+          </div>
+
+          ${
+            rubric.comments && rubric.comments.length > 0
               ? `
-                <div class="rubric-comments" style="margin-top:1rem; padding-top:1rem; border-top: 1px solid #e5e7eb;">
-                  <h4 style="margin-bottom:0.5rem; font-weight:bold; color:#1e40af;">Specific Comments</h4>
+                <div class="rubric-comments"
+                     style="margin-top:1rem; padding-top:1rem; border-top: 1px solid #e5e7eb;">
+                  <h4 style="margin-bottom:0.5rem; font-weight:bold; color:#1e40af;">
+                    Specific Comments
+                  </h4>
                   ${rubric.comments.map(comment => `
-                    <div style="background-color:#f9fafb; padding:0.75rem; border-radius:8px; margin-bottom:0.5rem;">
+                    <div style="background-color:#f9fafb; padding:0.75rem;
+                                border-radius:8px; margin-bottom:0.5rem;">
                       ${comment.comment}
                     </div>
                   `).join('')}
                 </div>
               `
               : ''
-            }
-          </div>
-        `).join('')}
-      </div>
-      `
-      : ''
-    }
-  `;
+          }
+        </div>
+      `).join('')}
+    </div>
+    `
+    : ''
+}
+`;
 
   const getHeroSvg = (heroName: string): string => {
     // Create a function to convert SVG to a data URL
@@ -649,43 +710,64 @@ export const generateReportHTML = (
     }
   };
 
-  // Build the writing style hero section - larger size, to be placed at bottom
-  const writingHeroSection = writingHero 
-    ? `
-      <div class="section writing-hero-section" style="margin-top: 3rem; background: linear-gradient(135deg, #f0f9ff, #e0f2fe); border-radius: 12px; padding: 1.5rem; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);">
-        <h2>Your Writing Style Superhero</h2>
+  // Modified writing hero section to use row layout
+  const writingHeroSection = writingHero
+  ? `
+    <div class="section writing-hero-section" style="margin-top: 3rem; background: linear-gradient(135deg, #f0f9ff, #e0f2fe); border-radius: 12px; padding: 1.5rem; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);">
+      <h2>Your Writing Style Superhero</h2>
+      
+      <div class="hero-container" style="display: flex; flex-direction: row; align-items: center; gap: 1.5rem; margin-top: 1rem;">
+        <!-- Hero Icon: removed circle, made taller -->
+        <div class="hero-icon" 
+             style="
+               width: auto; 
+               height: 400px;       /* Adjust as desired */
+               background-color: transparent; 
+               border-radius: 0; 
+               box-shadow: none; 
+               display: flex; 
+               align-items: center; 
+               justify-content: center;
+             ">
+          ${getHeroSvg(writingHero.name)}
+        </div>
         
-        <div class="hero-container" style="display: flex; flex-direction: column; align-items: center; gap: 1.5rem; margin-top: 1rem;">
-          <div class="hero-icon" style="font-size: 5rem; line-height: 1; background-color: white; border-radius: 50%; width: 400px; height: 400px; display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
-            ${getHeroSvg(writingHero.name)}
-          </div>
+        <div class="hero-content" style="flex: 1; 
+  min-width: 0; 
+  word-wrap: break-word; 
+  overflow-wrap: break-word; 
+  word-break: break-word;
+">
+          <h3 style="color: #1e40af; margin-top: 0; margin-bottom: 0.75rem; font-size: 1.75rem;">
+            ${writingHero.name}
+          </h3>
+          <p style="margin-top: 0; margin-bottom: 1.25rem;">
+            ${writingHero.description}
+          </p>
           
-          <div class="hero-content" style="width: 100%;">
-            <h3 style="color: #1e40af; text-align: center; margin-top: 0; margin-bottom: 0.75rem; font-size: 1.75rem;">${writingHero.name}</h3>
-            <p style="text-align: center; margin-top: 0; margin-bottom: 1.25rem;">${writingHero.description}</p>
+          <!-- Keep strengths & tips in the same row (remove flex-wrap) -->
+          <div style="display: flex; gap: 1.5rem;">
+            <div class="hero-strengths" style="flex: 1; min-width: 100px; background-color: white; padding: 1rem; border-radius: 8px;">
+              <h4 style="margin-top: 0; margin-bottom: 0.5rem; color: #1e40af;">Writing Strengths:</h4>
+              <ul style="margin: 0; padding-left: 1.5rem;">
+                ${writingHero.strengths.map(strength => `<li>${strength}</li>`).join('')}
+              </ul>
+            </div>
             
-            <div style="display: flex; gap: 1.5rem; flex-wrap: wrap;">
-              <div class="hero-strengths" style="flex: 1; min-width: 250px; background-color: white; padding: 1rem; border-radius: 8px; margin-bottom: 1rem;">
-                <h4 style="margin-top: 0; margin-bottom: 0.5rem; color: #1e40af;">Writing Strengths:</h4>
-                <ul style="margin: 0; padding-left: 1.5rem;">
-                  ${writingHero.strengths.map(strength => `<li>${strength}</li>`).join('')}
-                </ul>
-              </div>
-              
-              <div class="hero-tips" style="flex: 1; min-width: 250px; background-color: white; padding: 1rem; border-radius: 8px;">
-                <h4 style="margin-top: 0; margin-bottom: 0.5rem; color: #1e40af;">Tips to Improve:</h4>
-                <ul style="margin: 0; padding-left: 1.5rem;">
-                  ${writingHero.tips.map(tip => `<li>${tip}</li>`).join('')}
-                </ul>
-              </div>
+            <div class="hero-tips" style="flex: 1; min-width: 200px; background-color: white; padding: 1rem; border-radius: 8px;">
+              <h4 style="margin-top: 0; margin-bottom: 0.5rem; color: #1e40af;">Tips to Improve:</h4>
+              <ul style="margin: 0; padding-left: 1.5rem;">
+                ${writingHero.tips.map(tip => `<li>${tip}</li>`).join('')}
+              </ul>
             </div>
           </div>
         </div>
       </div>
-    `
-    : '';
+    </div>
+  `
+  : '';
 
- 
+
   // Build the student progress section
   const studentProgressSection = studentProgress 
     ? `
@@ -808,8 +890,7 @@ export const generateReportHTML = (
   <!-- Writing Style Hero Section - MOVED TO TOP -->
   ${writingHeroSection}
   
-  <!-- Student Progress Section -->
-  ${studentProgressSection}
+
 
   <!-- Analysis section -->
   ${analysisSection}
@@ -822,7 +903,8 @@ export const generateReportHTML = (
 
   <!-- Comments section -->
   ${commentsSection}
-
+  <!-- Student Progress Section -->
+  ${studentProgressSection}
   <!-- Encouragement message -->
   <div class="encouragement">
     ${getEncouragement(grades.overall)}
